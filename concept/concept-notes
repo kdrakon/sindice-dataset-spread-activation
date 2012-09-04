@@ -1,0 +1,3 @@
+Idea: A web application in which the user can select via SPARQL an RDF graph of data which would be materialised and analysed to produce a "spreading activation" model.
+
+The model would then be referenced to produce a 3D model (three.js) of the spreading activation graph. The user could then explore the graph to view the relationships between the entities returned from the SPARQL query.
