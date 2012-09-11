@@ -1,6 +1,6 @@
 PREFIX analytics: <http://vocab.sindice.net/analytics#> 
 PREFIX any23: <http://vocab.sindice.net/>  
-SELECT DISTINCT ?class_label, ?class_card, ?property, ?property_card FROM <http://sindice.com/analytics> WHERE {
+SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {
 
      ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/bbc.co.uk>	 .     
      ?class analytics:cardinality ?class_card.  
@@ -11,7 +11,7 @@ SELECT DISTINCT ?class_label, ?class_card, ?property, ?property_card FROM <http:
 
      ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/bbc.co.uk>.
      ?edge analytics:source ?class. 
-     ?edge analytics:label ?property.
+     ?edge analytics:label ?property_label.
      ?edge analytics:cardinality ?property_card.  
 
      FILTER(?class_card > 100)
