@@ -1,0 +1,19 @@
+PREFIX analytics: <http://vocab.sindice.net/analytics#> 
+PREFIX any23: <http://vocab.sindice.net/>  
+SELECT DISTINCT ?class_label, ?class_card, ?property, ?property_card FROM <http://sindice.com/analytics> WHERE {
+
+     ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/bbc.co.uk>	 .     
+     ?class analytics:cardinality ?class_card.  
+  
+     ?class analytics:label ?bnode .     
+     ?bnode analytics:label ?class_label .
+     ?bnode analytics:rank1 "1"^^xsd:integer.
+
+     ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/bbc.co.uk>.
+     ?edge analytics:source ?class. 
+     ?edge analytics:label ?property.
+     ?edge analytics:cardinality ?property_card.  
+
+     FILTER(?class_card > 100)
+     FILTER(?property_card > 100)
+ }  LIMIT 25
