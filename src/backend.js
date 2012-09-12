@@ -17,13 +17,17 @@ var _ = require('underscore');
 /*
  * Global Variables and Constants
  */	
-var predef_Sindice_query = "PREFIX analytics: <http://vocab.sindice.net/analytics#>  PREFIX any23: <http://vocab.sindice.net/>   SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {       ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/bbc.co.uk>	 .           ?class analytics:cardinality ?class_card.           ?class analytics:label ?bnode .           ?bnode analytics:label ?class_label .      ?bnode analytics:rank1 '1'^^xsd:integer.       ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/bbc.co.uk>.      ?edge analytics:source ?class.       ?edge analytics:label ?property_label.      ?edge analytics:cardinality ?property_card.         FILTER(?class_card > 100)      FILTER(?property_card > 100)  }   ";
+var predef_Sindice_query = "PREFIX analytics: <http://vocab.sindice.net/analytics#>  PREFIX any23: <http://vocab.sindice.net/>   SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {       ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/[DOMAINURI]>	 .           ?class analytics:cardinality ?class_card.           ?class analytics:label ?bnode .           ?bnode analytics:label ?class_label .      ?bnode analytics:rank1 '1'^^xsd:integer.       ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/[DOMAINURI]>.      ?edge analytics:source ?class.       ?edge analytics:label ?property_label.      ?edge analytics:cardinality ?property_card.         FILTER(?class_card > [CARDLIMIT])      FILTER(?property_card > [CARDLIMIT])  }   ";
 
 /*
  * Function Definitions
  */
-function constructQuery(variables){
-    // TODO
+ 
+/* Constructs the SPARQL query to retrieve the necessary analytics from Sindice */
+function constructQuery(domain_uri, card_limit){
+    
+    return predef_Sindice_query.replace(/\[DOMAINURI\]/g, domain_uri).replace(/\[CARDLIMIT\]/g, card_limit);
+
 }
 
 /* Turn the JSON returned result from Sindice into a graph model */
@@ -114,27 +118,30 @@ server.use(express.static('../webpage'));
 // handle GET requests to the server
 server.get('/activate', function(req, res){
 
-    // GET request variables are available in req.query
-    
-    // get the URI of the dataset(s) to query
+    // GET request variables are available in req.query    
+    // get the URI of the dataset(s) to query as well as other parameters
     var sindice_DatasetURI = req.query['dataset_uri'];
     var initial_Activation = req.query['init_A'];
     var fire_threshold = req.query['f'];
     var decay_factor = req.query['d'];
+    var card_limit = req.query['card_limit'];
+    
+    // TODO verify GET variables
     
     // construct the Sindice query
-    //constructQuery(null);
+    var query = constructQuery(sindice_DatasetURI, card_limit);
     
     // communicate with Sindice SPARQL ep to retrieve analytics
-    model = $.ajax({
-       url: 'http://sparql.sindice.com/sparql?query=' + escape(predef_Sindice_query),
+    $.ajax({
+       url: 'http://sparql.sindice.com/sparql?query=' + escape(query),
        dataType: 'json',
        success: function(data, textStatus, jqXHR){
-           // turn the returned data into the graph model
+           // turn the returned data into the spreading activation graph model and return it via AJAX
            res.send(prepareSpreadActivationGraphModel(data, sindice_DatasetURI, initial_Activation, fire_threshold, decay_factor));
        },
        error: function(jqXHR, textStatus, errorThrown){
            console.log(textStatus + " " + errorThrown);
+           res.send(500);
        }
     });
       
