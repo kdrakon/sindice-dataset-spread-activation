@@ -10,7 +10,7 @@
 /*
  * Global Variables
  */
-// NONE YET
+var globalScene;
 
 /*
  * Three.js Methods
@@ -26,8 +26,9 @@ function renderModel(scene){
     var renderer = new THREE.CanvasRenderer();
     renderer.setSize(W, H); 
     
-    var camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 10000);    
+    var camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000); 
     camera.position.z = 300;
+    
     scene.add(camera);    
        
     $container.append(renderer.domElement);
@@ -43,7 +44,13 @@ function create3DModel(model){
     // where all 3D objects will be appended
     var scene = new THREE.Scene();
     
-    // create the nodes and edges with the domain node at 0,0,0
+    // create and add the domain node sphere
+    var rootSphereMaterial = new THREE.MeshLambertMaterial({ color: 0x0000EE });
+    var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 10, 32, 8), rootSphereMaterial);
+    rootSphere.position = new THREE.Vector3( 0, 0, 0 );
+    scene.add(rootSphere);
+    
+    // create the nodes and edges around the domain node at 0,0,0
     generate3DNodesAndEdges(model, model['domain'], 0, 0, 0, scene);
     
     return scene;
@@ -62,13 +69,12 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
         
         // select only child nodes of parent (URIIndex)
         if(node[PARENT] == URIIndex){
-            // determine X,Y,Z relative to parent node and other nodes
-            newX+=10; 
-            newY+=10;
-            newZ+=1;
+            // determine X,Y,Z relative to parent node and other nodes 
+            newX+=10;
+            newZ-=10;
             
             // create sphere there
-            var sphere = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, 8, 8), sphereMaterial);
+            var sphere = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, 32, 8), sphereMaterial);
             sphere.position = new THREE.Vector3( newX, newY, newZ );
             
             // create edge there
@@ -77,7 +83,7 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
             scene.add(sphere);
             
             // recursively create child nodes
-            generate3DNodesAndEdges(model, URIkey, newX, newY, newZ, scene);
+            generate3DNodesAndEdges(model, URIkey, newX, newY-10, newZ, scene);
         }
         
     });
@@ -98,7 +104,8 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
        url: 'activate?dataset_uri=' + dataset_uri + '&card_limit=' + card_limit + '&init_A=' + init_A + '&f=' + f + '&d=' + d,
        dataType: 'json',
        success: function(data, textStatus, jqXHR){
-           renderModel(create3DModel(data));
+           globalScene = create3DModel(data);
+           renderModel(globalScene);
        },
        error: function(jqXHR, textStatus, errorThrown){
            alert(textStatus + " " + errorThrown);
@@ -116,7 +123,7 @@ function prepareUI(){
     
     // get the activation model and generate the 3D model from it
     $('#createModel').click(function(){
-        generateModel('bbc.co.uk', 100, 0.1, 0.1, 0.0001);
+        generateModel('bbc.co.uk', 100, 0.1, 0.1, 0.00001);
     });
     
 }

@@ -89,7 +89,7 @@ function spreadActivate(model, nodeURIIndex, fire_threshold, decay_factor){
 
             // set upper/lower bounds of activation value
             if (j[A] > 1){ j[A] = 1; }
-            if (j[A] < 0){ j[A] = 0; }
+            if (j[A] < 0){ j[A] = 0.01; }
             
             // recursively call for child node for current node
             spreadActivate(model, URIkey, fire_threshold, decay_factor);
