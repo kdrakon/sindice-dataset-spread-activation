@@ -17,7 +17,7 @@ var _ = require('underscore');
 /*
  * Global Variables and Constants
  */	
-var predef_Sindice_query = "PREFIX analytics: <http://vocab.sindice.net/analytics#>  PREFIX any23: <http://vocab.sindice.net/>   SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {       ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/bbc.co.uk>	 .           ?class analytics:cardinality ?class_card.           ?class analytics:label ?bnode .           ?bnode analytics:label ?class_label .      ?bnode analytics:rank1 '1'^^xsd:integer.       ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/bbc.co.uk>.      ?edge analytics:source ?class.       ?edge analytics:label ?property_label.      ?edge analytics:cardinality ?property_card.         FILTER(?class_card > 100)      FILTER(?property_card > 100)  }  LIMIT 25 ";
+var predef_Sindice_query = "PREFIX analytics: <http://vocab.sindice.net/analytics#>  PREFIX any23: <http://vocab.sindice.net/>   SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {       ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/bbc.co.uk>	 .           ?class analytics:cardinality ?class_card.           ?class analytics:label ?bnode .           ?bnode analytics:label ?class_label .      ?bnode analytics:rank1 '1'^^xsd:integer.       ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/bbc.co.uk>.      ?edge analytics:source ?class.       ?edge analytics:label ?property_label.      ?edge analytics:cardinality ?property_card.         FILTER(?class_card > 100)      FILTER(?property_card > 100)  }   ";
 
 /*
  * Function Definitions
@@ -61,44 +61,38 @@ function prepareSpreadActivationGraphModel(data, domain_uri, init_activation, fi
         
     });
     
-    // perform the spread activation algorithm
-    model = spreadActivate(model, fire_threshold, decay_factor);
+    // perform the recursive spread activation algorithm
+    spreadActivate(model, domain_uri, fire_threshold, decay_factor);
     
     return model;
     
 }
 
 /* This will perform the spread activation algorithm over the passed model */
-function spreadActivate(model, fire_threshold, decay_factor){
+function spreadActivate(model, nodeURIIndex, fire_threshold, decay_factor){
     
     var PARENT = 0, CARD = 1, A = 2;
     
-    // perform activation for first level child classes
-    _.each(model.nodes, function(j){   
+    // perform activation for all child classes/property nodes
+    _.each(model.nodes, function(j, URIkey){   
         
-        var i;     
-        
-        if (j[A] >= fire_threshold){
+        if (j[PARENT] == nodeURIIndex && j[A] >= fire_threshold){
             
-            // get the parent node, unless its the root
-            var parentActivation;
-            if (j[PARENT] != 0){
-                i = model.nodes[j[PARENT]];
-            }else{
-                i = [0,1,1];
-            }
+            var parentActivation = (model.nodes[j[PARENT]])[A];
             
             // A [ j ] = A [ j ] + (A [ i ] * W [ i, j ] * D)
-            j[A] = parseFloat(j[A]) + (parseFloat(i[A]) * parseFloat(j[CARD]) * parseFloat(decay_factor));
+            j[A] = parseFloat(j[A]) + (parseFloat(parentActivation) * parseFloat(j[CARD]) * parseFloat(decay_factor));
 
             // set upper/lower bounds of activation value
-            //if (c[A] > 1){ c[A] = 1; }
-            //if (c[A] < 0){ c[A] = 0; }
+            if (j[A] > 1){ j[A] = 1; }
+            if (j[A] < 0){ j[A] = 0; }
+            
+            // recursively call for child node for current node
+            spreadActivate(model, URIkey, fire_threshold, decay_factor);
+            
         }
         
     });
-    
-    return model;
     
 }
 
