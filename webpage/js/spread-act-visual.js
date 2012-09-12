@@ -10,30 +10,31 @@
 /*
  * Global Variables
  */
-var globalScene;
+var W = 800, H = 600;
+var globalScene, globalRenderer, globalCamera;
 
 /*
  * Three.js Methods
  */
  
+/* prepare THREE.js environment */
+function prepare3JS(){
+    
+    globalRenderer = new THREE.CanvasRenderer();
+    globalRenderer.setSize(W, H);
+    
+    globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
+    globalCamera.position.z = 100;
+    
+    var container = $('#canvas_holder'); 
+    container.append(globalRenderer.domElement);
+    
+}
+ 
 /* render a scene */
-function renderModel(scene){
+function renderModel(renderer, scene, camera){
     
-    var W = 800, H = 600;
-    
-    var $container = $('#main');
-    
-    var renderer = new THREE.CanvasRenderer();
-    renderer.setSize(W, H); 
-    
-    var camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000); 
-    camera.position.z = 300;
-    
-    scene.add(camera);    
-       
-    $container.append(renderer.domElement);
-    
-    // finally, render
+    //scene.add(camera);
     renderer.render(scene, camera);
     
 }
@@ -90,6 +91,20 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
     
 }
 
+function beginCameraRotation(){    
+
+    setInterval(function(){
+        // rotate camera
+        // globalCamera.rotation = new THREE.Vector3( 0, 0, 0 );
+        // move camera
+        //globalCamera.position = new THREE.Vector3( globalCamera.position.x + 0.1, 0, 0 );
+        globalCamera.position.x += 1;
+        // render the changes
+        renderModel(globalRenderer, globalScene, globalCamera);
+    }, 16);
+    
+}
+
 
 /*
  * General Methods
@@ -104,8 +119,11 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
        url: 'activate?dataset_uri=' + dataset_uri + '&card_limit=' + card_limit + '&init_A=' + init_A + '&f=' + f + '&d=' + d,
        dataType: 'json',
        success: function(data, textStatus, jqXHR){
+           // create the 3D scene
            globalScene = create3DModel(data);
-           renderModel(globalScene);
+           // render the scene
+           renderModel(globalRenderer, globalScene, globalCamera);
+           beginCameraRotation();
        },
        error: function(jqXHR, textStatus, errorThrown){
            alert(textStatus + " " + errorThrown);
@@ -135,6 +153,8 @@ function prepareUI(){
 $(document).ready(function(){
     
     // first construct the UI event handlers
-    prepareUI();   
+    prepareUI(); 
+    // secondly prepare the THREE.js environment
+    prepare3JS();  
    
 });
