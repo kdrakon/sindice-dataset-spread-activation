@@ -14,6 +14,8 @@ var W = 1024, H = 600;
 var GEOMETRIC_SEGMENTS = 8;
 var globalScene, globalRenderer, globalCamera, controls;
 
+function sqr(x) { return x*x; } 
+
 /*
  * Three.js Methods
  */
@@ -52,25 +54,28 @@ function create3DModel(model){
     
     // where all 3D objects will be appended
     var scene = new THREE.Scene();
+    var centreOfUniverse = new THREE.Vector3( 0, 0, 0 );
     
     // create and add the domain node sphere
     var rootSphereMaterial = new THREE.MeshLambertMaterial({ color: 0x0000EE });
     var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), rootSphereMaterial);
-    rootSphere.position = new THREE.Vector3( 0, 0, 0 );
+    rootSphere.position.copy(centreOfUniverse);
     scene.add(rootSphere);
     
-    // create the nodes and edges around the domain node at 0,0,0
-    generate3DNodesAndEdges(model, model['domain'], 0, 0, 0, scene);
+    // create the planet nodes around the domain node
+    var galaxy = {};    
+    generate3DGalaxy(model, model['domain'], galaxy);        
+    plotPlanetsInScene(galaxy, scene, centreOfUniverse);
     
     return scene;
     
 }
 
 /* recursive function for activation model that will create the 3D nodes and edges */
-function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
+function generate3DGalaxy(model, URIIndex, galaxy){
     
     var PARENT = 0, CARD = 1, A = 2;
-    var newX = X, newY = Y, newZ = Z;
+    var sector = 0;
     
     var sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xCC0000 });    
     
@@ -78,22 +83,55 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
         
         // select only child nodes of parent (URIIndex)
         if(node[PARENT] == URIIndex){
-            // determine X,Y,Z relative to parent node and other nodes 
-            newX+=10;
-            newZ-=10;
             
-            // create sphere there
-            var sphere = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
-            sphere.position = new THREE.Vector3( newX, newY, newZ );
+            // create child planet sphere
+            var planet = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
+                        
+            // append the planet to the array
+            galaxy[sector] = { 'planet' : planet, 'moons' : {} };
             
-            // TODO create edge there
+            // recursively create child planets
+            generate3DGalaxy(model, URIkey, galaxy[sector].moons);
             
-            // append the sphere and edge to the scene
-            scene.add(sphere);
-            
-            // recursively create child nodes
-            generate3DNodesAndEdges(model, URIkey, newX, newY-10, newZ, scene);
+            // increment to next sector
+            sector++;
         }
+        
+    });
+    
+}
+
+/* Plots the 3D generated planets in the galaxy onto the scene */
+function plotPlanetsInScene(galaxy, scene, plotCentre){
+    
+    // compute the ring distance that the planets should be positioned around the domain
+    var numOfPlanets = _.keys(galaxy).length;
+    var biggestSector = _.max(galaxy, function(sector){ return sector.planet.boundRadius; });
+    var biggestPlanetsRadius = biggestSector.planet.boundRadius;
+    var galaxyRingCircumference = biggestPlanetsRadius * numOfPlanets;
+    var galaxyRadius = (galaxyRingCircumference / 2) / Math.PI;
+    var rotationAngle = (360 / numOfPlanets) * (Math.PI / 180);  
+
+    // first, set the plotting position relative to the plot centre and the above computed radius
+    var currentPlotPosition = new THREE.Vector3();
+    currentPlotPosition.copy(plotCentre);
+    currentPlotPosition.setZ(galaxyRadius); // move towards user
+    
+    // for each sector (index) and subsectors (subindexes), plot the sphere planets in the scene
+    _.each(galaxy, function(sector, sector_id){
+       
+        // NOTE: the "sector" object has a planet and moons array
+        
+        // plot the current planet
+        sector.planet.position.copy(currentPlotPosition);
+        scene.add(sector.planet);
+        
+        // move the plot position
+        var z = Math.sqrt(sqr(Math.abs(currentPlotPosition.z - plotCentre.z)) + sqr(Math.abs(currentPlotPosition.x - plotCentre.x))) * Math.cos(rotationAngle);
+        var x = Math.sqrt(sqr(Math.abs(currentPlotPosition.z - plotCentre.z)) + sqr(Math.abs(currentPlotPosition.x - plotCentre.x))) * Math.sin(rotationAngle);
+        
+        currentPlotPosition.setZ(z);
+        currentPlotPosition.setX(x);               
         
     });
     
