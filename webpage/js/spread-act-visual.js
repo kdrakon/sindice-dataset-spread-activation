@@ -10,8 +10,9 @@
 /*
  * Global Variables
  */
-var W = 800, H = 600;
-var globalScene, globalRenderer, globalCamera;
+var W = 1024, H = 600;
+var GEOMETRIC_SEGMENTS = 8;
+var globalScene, globalRenderer, globalCamera, controls;
 
 /*
  * Three.js Methods
@@ -24,8 +25,11 @@ function prepare3JS(){
     globalRenderer.setSize(W, H);
     
     globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
-    globalCamera.position.z = 100;
+    globalCamera.position.z = 250;
     
+    controls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
+    controls.target.set( 0, 0, 0 );
+        
     var container = $('#canvas_holder'); 
     container.append(globalRenderer.domElement);
     
@@ -34,7 +38,11 @@ function prepare3JS(){
 /* render a scene */
 function renderModel(renderer, scene, camera){
     
-    //scene.add(camera);
+    // update the trackball controls movements
+    controls.update();
+    
+    // re-render the scene
+    renderer.clear();    
     renderer.render(scene, camera);
     
 }
@@ -47,7 +55,7 @@ function create3DModel(model){
     
     // create and add the domain node sphere
     var rootSphereMaterial = new THREE.MeshLambertMaterial({ color: 0x0000EE });
-    var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 10, 32, 8), rootSphereMaterial);
+    var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), rootSphereMaterial);
     rootSphere.position = new THREE.Vector3( 0, 0, 0 );
     scene.add(rootSphere);
     
@@ -75,10 +83,10 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
             newZ-=10;
             
             // create sphere there
-            var sphere = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, 32, 8), sphereMaterial);
+            var sphere = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
             sphere.position = new THREE.Vector3( newX, newY, newZ );
             
-            // create edge there
+            // TODO create edge there
             
             // append the sphere and edge to the scene
             scene.add(sphere);
@@ -91,17 +99,13 @@ function generate3DNodesAndEdges(model, URIIndex, X, Y, Z, scene){
     
 }
 
-function beginCameraRotation(){    
+function animate(){    
 
     setInterval(function(){
-        // rotate camera
-        // globalCamera.rotation = new THREE.Vector3( 0, 0, 0 );
-        // move camera
-        //globalCamera.position = new THREE.Vector3( globalCamera.position.x + 0.1, 0, 0 );
-        globalCamera.position.x += 1;
+        // TODO replace with requestanimationframe
         // render the changes
         renderModel(globalRenderer, globalScene, globalCamera);
-    }, 16);
+    }, 13);
     
 }
 
@@ -121,9 +125,9 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
        success: function(data, textStatus, jqXHR){
            // create the 3D scene
            globalScene = create3DModel(data);
-           // render the scene
+           // render the scene and start the animation loop
            renderModel(globalRenderer, globalScene, globalCamera);
-           beginCameraRotation();
+           animate();
        },
        error: function(jqXHR, textStatus, errorThrown){
            alert(textStatus + " " + errorThrown);
