@@ -13,11 +13,21 @@
 <body>
     
 <div id="control-panel">
-    <input type="button" id="createModel" value="Create Model"/>
+    Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
+    Edges <input type="checkbox" id="edges" checked />
+    Plot Distance Factor <input type="number" id="plotDistanceFactor" value="1" step="0.1" />
+    <br>
+    Minimum Cardinality <input type="number" id="card" value="100" />
+    Init Activation <input type="number" id="init_A" value="0.1" step="0.1" />
+    Firing Limit <input type="number" id="f" value="0.1" step="0.1" />
+    Decay Rate <input type="number" id="d" value="0.00001" step="0.00001" />    
+    <br>
+    <input type="button" id="createModel" value="Create Model" />
 </div>
 
-<div style="border-style: solid; background-color: black;" id="canvas_holder"></div>
+<div style="border-style: solid; background-color: black; width:1024px;" id="canvas_holder"></div>
 
+* LMB + Drag = rotate view, RMB + Drag = pan view, MMB + Drag ( or hold 's' + Drag ) = zoom
 
 
 </body>
