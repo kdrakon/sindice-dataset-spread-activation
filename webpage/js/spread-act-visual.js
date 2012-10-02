@@ -3,7 +3,7 @@
  * Date: 12.09.2012 13:54:03
  * 
  * Purpose: This source is primarily concerned with taking a model generated from the node.js 
- * backend that contains an spreading activation of RDF analytics from Sindice.
+ * backend that contains a spreading activation of RDF analytics from Sindice.
  * 
  */
  
@@ -11,7 +11,7 @@
  * Global Variables
  */
 var W = 1024, H = 600;
-var GEOMETRIC_SEGMENTS = 3;
+var GEOMETRIC_SEGMENTS = 5;
 var globalScene, globalRenderer, globalCamera, controls;
 
 function sqr(x) { return x*x; } 
@@ -26,11 +26,12 @@ function prepare3JS(){
     globalRenderer = new THREE.CanvasRenderer();
     globalRenderer.setSize(W, H);
     
-    globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 1000);
+    globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 10000);
     globalCamera.position.z = 250;
     
+    // attach the trackballcontrols to the camera
     controls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
-    controls.target.set( 0, 0, 0 );
+    controls.target.set( 0, 0, 0 ); // NOTE: use this to set focus on planets later
         
     var container = $('#canvas_holder'); 
     container.append(globalRenderer.domElement);
@@ -64,20 +65,21 @@ function create3DModel(model){
     
     // create the planet nodes around the domain node
     var galaxy = {};    
-    generate3DGalaxy(model, model['domain'], galaxy);        
-    plotPlanetsInScene(galaxy, scene, centreOfUniverse);
+    generate3DGalaxy(model, model['domain'], galaxy, 0xCC0000);        
+    plotPlanetsInScene(galaxy, scene, centreOfUniverse, 100, 0x0000EE);
     
+  
     return scene;
     
 }
 
-/* recursive function for activation model that will create the 3D nodes and edges */
-function generate3DGalaxy(model, URIIndex, galaxy){
+/* recursive function for activation model that will create the 3D node planets */
+function generate3DGalaxy(model, URIIndex, galaxy, node_color){
     
     var PARENT = 0, CARD = 1, A = 2;
     var sector = 0;
     
-    var sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xCC0000 });    
+    var sphereMaterial = new THREE.MeshLambertMaterial({ color: node_color });    
     
     _.each(model.nodes, function(node, URIkey){
         
@@ -91,7 +93,7 @@ function generate3DGalaxy(model, URIIndex, galaxy){
             galaxy[sector] = { 'planet' : planet, 'moons' : {} };
             
             // recursively create child planets
-            generate3DGalaxy(model, URIkey, galaxy[sector].moons);
+            generate3DGalaxy(model, URIkey, galaxy[sector].moons, node_color+0x00ff00);
             
             // increment to next sector
             sector++;
@@ -102,7 +104,7 @@ function generate3DGalaxy(model, URIIndex, galaxy){
 }
 
 /* Plots the 3D generated planets in the galaxy onto the scene */
-function plotPlanetsInScene(galaxy, scene, plotCentre){
+function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     
     // compute the ring distance that the planets should be positioned around the domain
     var numOfPlanets = _.keys(galaxy).length;
@@ -110,39 +112,47 @@ function plotPlanetsInScene(galaxy, scene, plotCentre){
     // first check if this galaxy (or sub-galaxy/moons) has any planets. if not, skip this iteration
     if (numOfPlanets == 0){
         return;
-    }    
+    }
     
     var biggestSector = _.max(galaxy, function(sector){ return sector.planet.boundRadius; });
     var biggestPlanetsRadius = biggestSector.planet.boundRadius;
-    var galaxyRingCircumference = biggestPlanetsRadius * numOfPlanets;
-    var galaxyRadius = (galaxyRingCircumference / 2) / Math.PI;
+    var galaxyRadius = radius;
     var rotationAngle = (360 / numOfPlanets) * (Math.PI / 180);  
+    var currentRotation = rotationAngle;  
 
     // first, set the plotting position relative to the plot centre and the above computed radius
     var currentPlotPosition = new THREE.Vector3();
-    currentPlotPosition.copy(plotCentre);
-    currentPlotPosition.setZ(galaxyRadius); // move towards user
+    currentPlotPosition.copy(plotCentre);    
+    currentPlotPosition.setZ(currentPlotPosition.z + galaxyRadius); // move towards s
     
     // for each sector (index) and subsectors (subindexes), plot the sphere planets in the scene
     _.each(galaxy, function(sector, sector_id){
        
         // NOTE: the "sector" object has a planet and moons array
         
-        // first plot the moons around this planet
-        plotPlanetsInScene(sector.moons, scene, currentPlotPosition);
-        
         // plot the current planet
         sector.planet.position.copy(currentPlotPosition);
         scene.add(sector.planet);
         
-        // move the plot position
-        var z = Math.sqrt(sqr(Math.abs(currentPlotPosition.z - plotCentre.z)) + sqr(Math.abs(currentPlotPosition.x - plotCentre.x))) * Math.cos(rotationAngle);
-        var x = Math.sqrt(sqr(Math.abs(currentPlotPosition.z - plotCentre.z)) + sqr(Math.abs(currentPlotPosition.x - plotCentre.x))) * Math.sin(rotationAngle);
+        // draw an edge from the plotcentre to this planet
+        var line_geometry = new THREE.Geometry();
+        line_geometry.vertices.push( plotCentre ); 
+        line_geometry.vertices.push( new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z) );
+        var line = new THREE.Line( line_geometry, new THREE.LineBasicMaterial( { color: edge_color } ));
+        scene.add(line);        
+    
+        // next, plot the moons around this planet
+        plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), 20, 0xffff00);
         
-        currentPlotPosition.setZ(z);
+        // rotate the plot position for the next sectors
+        var z = plotCentre.z + (galaxyRadius * Math.cos(currentRotation));
+        var x = plotCentre.x + (galaxyRadius * Math.sin(currentRotation));
+        
         currentPlotPosition.setX(x);
+        currentPlotPosition.setZ(z);        
         
-        rotationAngle += rotationAngle;            
+        // increment rotation for next sectors planet
+        currentRotation += rotationAngle;            
         
     });
     
