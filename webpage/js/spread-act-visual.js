@@ -11,7 +11,7 @@
  * Global Variables
  */
 var W = 1024, H = 600;
-var GEOMETRIC_SEGMENTS = 8;
+var GEOMETRIC_SEGMENTS = 3;
 var globalScene, globalRenderer, globalCamera, controls;
 
 function sqr(x) { return x*x; } 
@@ -58,7 +58,7 @@ function create3DModel(model){
     
     // create and add the domain node sphere
     var rootSphereMaterial = new THREE.MeshLambertMaterial({ color: 0x0000EE });
-    var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), rootSphereMaterial);
+    var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 5, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), rootSphereMaterial);
     rootSphere.position.copy(centreOfUniverse);
     scene.add(rootSphere);
     
@@ -106,6 +106,12 @@ function plotPlanetsInScene(galaxy, scene, plotCentre){
     
     // compute the ring distance that the planets should be positioned around the domain
     var numOfPlanets = _.keys(galaxy).length;
+    
+    // first check if this galaxy (or sub-galaxy/moons) has any planets. if not, skip this iteration
+    if (numOfPlanets == 0){
+        return;
+    }    
+    
     var biggestSector = _.max(galaxy, function(sector){ return sector.planet.boundRadius; });
     var biggestPlanetsRadius = biggestSector.planet.boundRadius;
     var galaxyRingCircumference = biggestPlanetsRadius * numOfPlanets;
@@ -122,6 +128,9 @@ function plotPlanetsInScene(galaxy, scene, plotCentre){
        
         // NOTE: the "sector" object has a planet and moons array
         
+        // first plot the moons around this planet
+        plotPlanetsInScene(sector.moons, scene, currentPlotPosition);
+        
         // plot the current planet
         sector.planet.position.copy(currentPlotPosition);
         scene.add(sector.planet);
@@ -131,7 +140,9 @@ function plotPlanetsInScene(galaxy, scene, plotCentre){
         var x = Math.sqrt(sqr(Math.abs(currentPlotPosition.z - plotCentre.z)) + sqr(Math.abs(currentPlotPosition.x - plotCentre.x))) * Math.sin(rotationAngle);
         
         currentPlotPosition.setZ(z);
-        currentPlotPosition.setX(x);               
+        currentPlotPosition.setX(x);
+        
+        rotationAngle += rotationAngle;            
         
     });
     
