@@ -7,20 +7,20 @@
  * 
  */
  
-/*
+/********************************************************************
  * Global Variables
- */
-var W = 1024, H = 600;
+ *******************************************************************/
+var W = 800, H = 600;
 var GEOMETRIC_SEGMENTS = 8;
 var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0xff3300, PLANET_EDGE_COLOR = 0x0000EE;
 var PLANET_COLOR = 0xCC0000, MOON_COLOR = 0xCCFF00, DOMAIN_COLOR = 0x0000EE;
 
-var globalScene, globalRenderer, globalCamera, controls;
+var globalScene, globalRenderer, globalCamera, globalControls;
 
-/*
+/********************************************************************
  * Three.js Methods
- */
+ ********************************************************************/
  
 function sqr(x) { return x*x; } 
  
@@ -35,23 +35,11 @@ function prepare3JS(){
     globalCamera.position.z = 250;
     
     // attach the trackballcontrols to the camera
-    controls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
-    controls.target.set( 0, 0, 0 ); // NOTE: use this to set focus on planets later
-        
+    globalControls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
+    globalControls.target.set( 0, 0, 0 ); 
+    
     var container = $('#canvas_holder'); 
     container.append(globalRenderer.domElement);
-    
-}
- 
-/* render a scene */
-function renderModel(renderer, scene, camera){
-    
-    // update the trackball controls movements
-    controls.update();
-    
-    // re-render the scene
-    renderer.clear();    
-    renderer.render(scene, camera);
     
 }
  
@@ -85,6 +73,7 @@ function generate3DGalaxy(model, URIIndex, galaxy, node_color){
     
     var sphereMaterial = new THREE.MeshLambertMaterial({ color: node_color });    
     
+    // TODO this is quadratic *tsk* *tsk*
     _.each(model.nodes, function(node, URIkey){
         
         // select only child nodes of parent (URIIndex)
@@ -94,7 +83,7 @@ function generate3DGalaxy(model, URIIndex, galaxy, node_color){
             var planet = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
                         
             // append the planet to the array
-            galaxy[sector] = { 'planet' : planet, 'moons' : {} };
+            galaxy[sector] = { 'planet' : planet, 'uri' : URIkey, 'moons' : {} };
             
             // recursively create child planets
             generate3DGalaxy(model, URIkey, galaxy[sector].moons, MOON_COLOR);
@@ -136,6 +125,9 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         sector.planet.position.copy(currentPlotPosition);
         scene.add(sector.planet);
         
+        // append a navigation link
+        appendNavigationLink(sector.uri, currentPlotPosition);
+        
         // draw an edge from the plotcentre to this planet if a color was specified
         if ($('#edges').prop("checked")){
             var line_geometry = new THREE.Geometry();
@@ -161,6 +153,21 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     
 }
 
+/* render a scene */
+function renderModel(renderer, scene, camera){
+    
+    // update the trackball controls movements
+    globalControls.update();
+    
+    // re-render the scene
+    renderer.clear();    
+    renderer.render(scene, camera);
+    
+}
+
+/* 
+ * Animate/render the model 
+ */
 function animate(){    
 
     setInterval(function(){
@@ -171,10 +178,17 @@ function animate(){
     
 }
 
-
 /*
- * General Methods
+ * Will focus the camera on a vector position given
  */
+function pointCamera(x,y,z){
+    globalControls.target.copy(new THREE.Vector3(x,y,z));
+}
+
+
+/*******************************************************************
+ * General Methods
+ *******************************************************************/
  
 /* Retrieve the Spread activation model from the backend and create the 3D model */
 function generateModel(dataset_uri, card_limit, init_A, f, d){
@@ -185,6 +199,8 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
        url: 'activate?dataset_uri=' + dataset_uri + '&card_limit=' + card_limit + '&init_A=' + init_A + '&f=' + f + '&d=' + d,
        dataType: 'json',
        success: function(data, textStatus, jqXHR){
+           // clear the class/property navigation menu
+           $('#nav').text("");           
            // create the 3D scene
            globalScene = create3DModel(data);
            // render the scene and start the animation loop
@@ -198,9 +214,17 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
     
 }
 
-/*
+/* Will append a navigation link for a node from the 3D view */
+function appendNavigationLink(URI, vector_location){
+    
+    var call = "pointCamera(" + vector_location.x + "," + vector_location.y + "," + vector_location.z + ");";
+    $('#nav').append("<a onmouseover='" + call + "'>" + URI + "</a><br>");
+    
+}
+
+/*******************************************************************
  * JQuery Event Handlers
- */
+ *******************************************************************/
  
 /* Will append all the HTML element event handlers */
 function prepareUI(){
@@ -212,9 +236,9 @@ function prepareUI(){
     
 }
 
-/*
+/*******************************************************************
  * Functions to run on page load.
- */
+ ********************************************************************/
 
 $(document).ready(function(){
     

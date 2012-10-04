@@ -5,23 +5,24 @@
  * 
  */
  
- /*
+ /*******************************************************************
  * Imports
- */
+ *******************************************************************/
 var exec = require('child_process').exec;
 var spawn = require('child_process').spawn;
 var express = require('express');
 var $ = require('jquery');
 var _ = require('underscore');
  
-/*
+/*******************************************************************
  * Global Variables and Constants
- */	
+ *******************************************************************/	
+ 
 var predef_Sindice_query = "PREFIX analytics: <http://vocab.sindice.net/analytics#>  PREFIX any23: <http://vocab.sindice.net/>   SELECT DISTINCT ?class_label, ?class_card, ?property_label, ?property_card FROM <http://sindice.com/analytics> WHERE {       ?class any23:domain_uri <http://sindice.com/dataspace/default/domain/[DOMAINURI]>	 .           ?class analytics:cardinality ?class_card.           ?class analytics:label ?bnode .           ?bnode analytics:label ?class_label .      ?bnode analytics:rank1 '1'^^xsd:integer.       ?edge analytics:publishedIn <http://sindice.com/dataspace/default/domain/[DOMAINURI]>.      ?edge analytics:source ?class.       ?edge analytics:label ?property_label.      ?edge analytics:cardinality ?property_card.         FILTER(?class_card > [CARDLIMIT])      FILTER(?property_card > [CARDLIMIT])  }   ";
 
-/*
+/*******************************************************************
  * Function Definitions
- */
+ *******************************************************************/
  
 /* Constructs the SPARQL query to retrieve the necessary analytics from Sindice */
 function constructQuery(domain_uri, card_limit){
@@ -101,9 +102,9 @@ function spreadActivate(model, nodeURIIndex, fire_threshold, decay_factor){
 }
 
 
-/*
+/*******************************************************************
  * Node.js Server Program
- */
+ *******************************************************************/
 
 // create the server using express.js
 console.log("starting server...");
@@ -147,7 +148,7 @@ server.get('/activate', function(req, res){
       
 });
 
-/*
+/*******************************************************************
  * Start the server
- */ 
+ *******************************************************************/ 
 server.listen(8045);
