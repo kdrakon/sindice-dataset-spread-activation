@@ -10,7 +10,7 @@
 /********************************************************************
  * Global Variables
  *******************************************************************/
-var W = 800, H = 600;
+var W = 800, H = 600; // these will be overwritten by the actual size of the canvases div
 var GEOMETRIC_SEGMENTS = 8;
 var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0xff3300, PLANET_EDGE_COLOR = 0x0000EE;
@@ -27,6 +27,9 @@ function sqr(x) { return x*x; }
 /* prepare THREE.js environment */
 function prepare3JS(){
     
+    var ch = $('#canvas-holder');
+    W = ch.width(); H = ch.height();
+    
     globalRenderer = new THREE.CanvasRenderer();
     globalRenderer.setSize(W, H);
     
@@ -38,7 +41,7 @@ function prepare3JS(){
     globalControls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
     globalControls.target.set( 0, 0, 0 ); 
     
-    var container = $('#canvas_holder'); 
+    var container = $('#canvas-holder'); 
     container.append(globalRenderer.domElement);
     
 }
@@ -218,7 +221,7 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
 function appendNavigationLink(URI, vector_location){
     
     var call = "pointCamera(" + vector_location.x + "," + vector_location.y + "," + vector_location.z + ");";
-    $('#nav').append("<a onmouseover='" + call + "'>" + URI + "</a><br>");
+    $('#nav').append("<a class='model-link' onclick='" + call + "'>" + URI + "</a><br>");
     
 }
 
@@ -234,6 +237,29 @@ function prepareUI(){
         generateModel($('#domainURI').val(), $('#card').val(), $('#init_A').val(), $('#f').val(), $('#d').val());
     });
     
+    // have the navigation menu slide away/in
+    $('#nav-shoulder').click(function(){
+        $('#nav').animate({
+            width: "30%"
+        }, 100);
+    });    
+    $('#nav').mouseleave(function(){
+        $('#nav').animate({
+            width: "0px"
+        }, 100);        
+    });
+    
+    // have the control panel slide away/in
+        $('#control-panel-shoulder').click(function(){
+        $('#control-panel').animate({
+            height: "30%"
+        }, 100);
+    });    
+    $('#control-panel').mouseleave(function(){
+        $('#control-panel').animate({
+            height: "0px"
+        }, 100);        
+    });
 }
 
 /*******************************************************************

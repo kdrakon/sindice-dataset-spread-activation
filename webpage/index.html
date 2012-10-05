@@ -10,10 +10,29 @@
 <script src="js/lib/three.js"></script>
 <script src="js/spread-act-visual.js"></script>
 
-<body>
+<style>
+
+.model-link{
+    cursor: pointer;
+    padding-left: 1em;
+}
     
-<div id="control-panel">
-    Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
+</style>
+
+<body>
+
+<div>
+Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
+<input type="button" id="createModel" value="Create Model" />
+</div>    
+
+<div id="canvas-holder" style="border-style:none; float:left; background-color:black; width:66%; height:600px"></div>
+
+<div id="nav-shoulder" style="border-style:none; float:left; width:10px; height:600px; background-color:red;"></div>
+<div id="nav" style="border-style:none; float:left; width:0px; height:600px; overflow:auto;"></div>
+
+<div id="control-panel-shoulder" style="border-style:none; clear:both; width:66%; height:10px; background-color:red;"></div>
+<div id="control-panel" style="border-style:none; clear:both; width:66%; height:0px; overflow:auto;">    
     Edges <input type="checkbox" id="edges" checked />
     Plot Distance Factor <input type="number" id="plotDistanceFactor" value="1" step="0.1" />
     <br>
@@ -21,12 +40,6 @@
     Init Activation <input type="number" id="init_A" value="0.1" step="0.1" />
     Firing Limit <input type="number" id="f" value="0.1" step="0.1" />
     Decay Rate <input type="number" id="d" value="0.00001" step="0.00001" />    
-    <br>
-    <input type="button" id="createModel" value="Create Model" />
 </div>
-
-<div id="canvas_holder" style="border-style:none; float:left; background-color:black; width:800px; height:600px"></div>
-
-<div id="nav" style="border-style:none; float:left; height:600px; overflow:auto; "></div>
 
 </body>
