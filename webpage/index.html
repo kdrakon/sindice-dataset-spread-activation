@@ -8,9 +8,18 @@
 <script src="js/lib/underscore.js"></script>
 <script src="js/lib/backbone.js"></script>
 <script src="js/lib/three.js"></script>
+<script src="js/lib/fonts/helvetiker_regular.typeface.js"></script>
 <script src="js/spread-act-visual.js"></script>
 
 <style>
+    
+body {
+    font: 12px/18px "Lucida Grande", "Lucida Sans Unicode", Helvetica, Arial, Verdana, sans-serif;
+}
+
+#canvas-holder {    
+    background-color: #87CEEB; //sky blue    
+}
 
 .model-link{
     cursor: pointer;
@@ -26,14 +35,14 @@ Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
 <input type="button" id="createModel" value="Create Model" />
 </div>    
 
-<div id="canvas-holder" style="border-style:none; float:left; background-color:black; width:66%; height:600px"></div>
+<div id="canvas-holder" style="border-style:none; float:left; width:66%; height:600px; overflow:hidden;"></div>
 
-<div id="nav-shoulder" style="border-style:none; float:left; width:10px; height:600px; background-color:red;"></div>
+<div id="nav-shoulder" style="border-style:none; float:left; width:10px; height:600px; background-color:#008CC3;"></div>
 <div id="nav" style="border-style:none; float:left; width:0px; height:600px; overflow:auto;"></div>
 
-<div id="control-panel-shoulder" style="border-style:none; clear:both; width:66%; height:10px; background-color:red;"></div>
+<div id="control-panel-shoulder" style="border-style:none; clear:both; width:66%; height:10px; background-color:#008CC3;"></div>
 <div id="control-panel" style="border-style:none; clear:both; width:66%; height:0px; overflow:auto;">    
-    Edges <input type="checkbox" id="edges" checked />
+    Edges <input type="checkbox" id="edges" />
     Plot Distance Factor <input type="number" id="plotDistanceFactor" value="1" step="0.1" />
     <br>
     Minimum Cardinality <input type="number" id="card" value="100" />
@@ -41,5 +50,7 @@ Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
     Firing Limit <input type="number" id="f" value="0.1" step="0.1" />
     Decay Rate <input type="number" id="d" value="0.00001" step="0.00001" />    
 </div>
+
+<div id="console"></div>
 
 </body>
