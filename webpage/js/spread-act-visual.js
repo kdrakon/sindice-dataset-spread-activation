@@ -3,15 +3,33 @@
  * Date: 12.09.2012 13:54:03
  * 
  * Purpose: This source is primarily concerned with taking a model generated from the node.js 
- * backend that contains a spreading activation of RDF analytics from Sindice.
+ * backend that contains a spreading activation of RDF analytics from Sindice. This frontend will
+ * create a 3D model using the Three.js library.
  * 
  */
  
+ /*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ * 
+ */ 
  
 /********************************************************************
  * Global Variables
  *******************************************************************/
-var W = 800, H = 600; // these will be overwritten by the actual size of the canvases div
+var W = 800, H = 500; // these will be overwritten by the actual size of the canvases div
 var GEOMETRIC_SEGMENTS = 8;
 var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0x405744, PLANET_EDGE_COLOR = 0x405744;
@@ -38,8 +56,7 @@ function prepare3JS(){
     globalRenderer.setSize(W, H);
     
     globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 10000);
-    globalCamera.position.y = 50;
-    globalCamera.position.z = 200;
+    globalCamera.position = new THREE.Vector3(0, 25, 250);
     
     // attach the trackballcontrols to the camera
     globalControls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
@@ -120,6 +137,9 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     currentPlotPosition.copy(plotCentre);    
     currentPlotPosition.setZ(currentPlotPosition.z + galaxyRadius); // move towards user
     
+    // calculate this distances for determining the highlight node
+    var distanceFromCameraToTarget = globalCamera.position.distanceTo(globalControls.target);
+    
     // for each sector (index) and subsectors (subindexes), plot the sphere planets in the scene
     _.each(galaxy, function(sector, sector_id){
        
@@ -129,11 +149,12 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         sector.planet.position.copy(currentPlotPosition);
         scene.add(sector.planet);
         
-        // create a label at this planet IF the camera is close enough
-        var distance = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
-        if (distance < minNodeDistance.val){
+        // create a label and highlight at this planet IF the camera is close enough and the node is in view
+        var distanceToCamera = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
+        var distanceToTarget = currentPlotPosition.distanceTo(globalControls.target)
+        if (distanceToCamera < minNodeDistance.val && distanceToTarget < distanceFromCameraToTarget){
             // keep track of the shortest distance
-            minNodeDistance.val = distance;
+            minNodeDistance.val = distanceToCamera;
             // update the label
             $('#node-label').text(sector.uri);
             // create the highlight node and set its position
@@ -227,7 +248,11 @@ function animate(){
  * Will focus the camera on a vector position given
  */
 function pointCamera(x,y,z){
+    
+    // TODO Zoom in on node
+    
     globalControls.target.copy(new THREE.Vector3(x,y,z));    
+    
 }
 
 
