@@ -15,10 +15,12 @@ var W = 800, H = 600; // these will be overwritten by the actual size of the can
 var GEOMETRIC_SEGMENTS = 8;
 var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0x405744, PLANET_EDGE_COLOR = 0x405744;
-var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326;
+var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326, HIGHLIGHT_COLOR = 0xF58718;
+var MIN_DISTANCE_FOR_LABELS = 100;
 
 var globalScene, globalRenderer, globalCamera, globalControls;
 var galaxyModel = {};
+var minNodeDistance = { 'val' : MIN_DISTANCE_FOR_LABELS, 'reset' : function(){this.val=MIN_DISTANCE_FOR_LABELS;}};
 
 /********************************************************************
  * Three.js Methods
@@ -37,7 +39,7 @@ function prepare3JS(){
     
     globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 10000);
     globalCamera.position.y = 50;
-    globalCamera.position.z = 100;
+    globalCamera.position.z = 200;
     
     // attach the trackballcontrols to the camera
     globalControls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
@@ -52,22 +54,10 @@ function prepare3JS(){
 /* will construct and return the whole 3D model in a Three.js scene */
 function create3DModel(model){
     
-    // where all 3D objects will be appended
-    var scene = new THREE.Scene();
-    var centreOfUniverse = new THREE.Vector3( 0, 0, 0 );
-    
-    // create and add the domain node sphere
-    //var rootSphereMaterial = new THREE.MeshLambertMaterial({ color: DOMAIN_COLOR });
-    //var rootSphere = new THREE.Mesh( new THREE.SphereGeometry((model.nodes[model.domain])[2] * 5, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), rootSphereMaterial);
-    //rootSphere.position.copy(centreOfUniverse);
-    //scene.add(rootSphere);
-    
-    // create the planet nodes around the domain node
+    // reset the object containing the 3D model
     galaxyModel = {};
-    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR);        
-    plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), PLANET_EDGE_COLOR);
-    
-    return scene;
+    // create the planet nodes with the domain URI as the root
+    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR); 
     
 }
 
@@ -79,7 +69,6 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
     
     var sphereMaterial = new THREE.MeshLambertMaterial({ color: node_color });    
     
-    // TODO this is quadratic *tsk* *tsk*
     _.each(model.nodes, function(node, URIkey){
         
         // select only child nodes of parent (URIIndex)
@@ -104,7 +93,7 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
     
 }
 
-/* Plots the 3D generated planets in the galaxy onto the scene */
+/* Plots the 3D generated planets in the galaxy model on to the scene */
 function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     
     // compute the ring distance that the planets should be positioned around the domain
@@ -115,9 +104,16 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         return;
     }
     
+    // boolean value from HTML UI for edge rendering
+    var edges = $('#edges').prop("checked");
+    
+    // reserved for highlight node which this function returns
+    var highlight;
+    
+    // rotation calculations for planets
     var galaxyRadius = radius;
     var rotationAngle = (360 / numOfPlanets) * (Math.PI / 180);  
-    var currentRotation = rotationAngle;  
+    var currentRotation = rotationAngle;
 
     // first, set the plotting position relative to the plot centre and the above computed radius
     var currentPlotPosition = new THREE.Vector3();
@@ -134,15 +130,22 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         scene.add(sector.planet);
         
         // create a label at this planet IF the camera is close enough
-        if (currentPlotPosition.distanceTo(globalCamera.position) <= 25){
-            
+        var distance = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
+        if (distance < minNodeDistance.val){
+            // keep track of the shortest distance
+            minNodeDistance.val = distance;
+            // update the label
+            $('#node-label').text(sector.uri);
+            // create the highlight node and set its position
+            highlight = new THREE.Mesh( new THREE.SphereGeometry(sector.planet.boundRadius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), new THREE.MeshLambertMaterial({ color: HIGHLIGHT_COLOR }));
+            highlight.position.copy(sector.planet.position);
         }
         
         // append a navigation link
-        //appendNavigationLink(sector.uri, currentPlotPosition);
+        appendNavigationLink(sector.uri, currentPlotPosition);
         
         // draw an edge from the plotcentre to this planet if the option is on
-        if ($('#edges').prop("checked")){
+        if (edges){
             var line_geometry = new THREE.Geometry();
             line_geometry.vertices.push( plotCentre ); 
             line_geometry.vertices.push( new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z) );
@@ -150,10 +153,14 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
             scene.add(line);     
         }   
     
-        // next, plot the moons around this planet
-        plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), MOON_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), MOON_EDGE_COLOR);
+        // next, recursively plot the moons around this planet
+        var ret_highlight = plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), MOON_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), MOON_EDGE_COLOR);
+        // check if the recursive call returned a highlight node: replace it if it did
+        if (ret_highlight !== undefined){
+            highlight = ret_highlight;
+        }
         
-        // rotate the plot position for the next sectors
+        // rotate the plot position for the next sectors to use
         var z = plotCentre.z + (galaxyRadius * Math.cos(currentRotation));
         var x = plotCentre.x + (galaxyRadius * Math.sin(currentRotation));        
         currentPlotPosition.setX(x);
@@ -164,9 +171,33 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         
     });
     
+    // return the highlight node created while plotting the planets
+    return highlight;
+    
+}
+/* Prepare the scene before rendering */
+function prepareScene(scene){
+    
+    var centreOfUniverse = new THREE.Vector3( 0, 0, 0 );
+    
+    // reset the scene where all 3D objects will be appended
+    scene = new THREE.Scene();
+    
+    // reset the variable for determining the closest node and highlight       
+    minNodeDistance.reset();
+    
+    // clear the navigation links
+    clearNavigationLinks();
+    
+    // recursively plot the generated planet nodes from the model and get the highlight node
+    var highlightNode = plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), PLANET_EDGE_COLOR);
+    scene.add(highlightNode); //add the highlight
+    
+    return scene;
+    
 }
 
-/* render a scene */
+/* Render a scene */
 function renderModel(renderer, scene, camera){
     
     // update the trackball controls movements
@@ -213,11 +244,12 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
        url: 'activate?dataset_uri=' + dataset_uri + '&card_limit=' + card_limit + '&init_A=' + init_A + '&f=' + f + '&d=' + d,
        dataType: 'json',
        success: function(data, textStatus, jqXHR){
-           // clear the class/property navigation menu
-           $('#nav').text(""); 
-                     
-           // create the 3D scene
-           globalScene = create3DModel(data);
+                    
+           // create the 3D model
+           create3DModel(data);
+           
+           // plot the model on to the scene
+           globalScene = prepareScene(globalScene);
            
            // render the scene and start the animation loop
            renderModel(globalRenderer, globalScene, globalCamera);
@@ -236,6 +268,11 @@ function appendNavigationLink(URI, vector_location){
     var call = "pointCamera(" + vector_location.x + "," + vector_location.y + "," + vector_location.z + ");";
     $('#nav').append("<a class='model-link' onclick='" + call + "'>" + URI + "</a><br>");
     
+}
+
+/* Clear the navigation links for the view */
+function clearNavigationLinks(){
+    $('#nav').text("");
 }
 
 /*******************************************************************
@@ -274,13 +311,11 @@ function prepareUI(){
         }, 100);        
     });
     
-    //TEST
+    // whenever the user clicks on the canvas, re-plot the nodes and determine the highlight
     var ch = $('#canvas-holder');
-    var out = $('#console');
-    ch.click(function(e){
+    ch.mousemove(function(e){
         
-        globalScene = new THREE.Scene();
-        plotPlanetsInScene(galaxyModel, globalScene, new THREE.Vector3(0,0,0), PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), PLANET_EDGE_COLOR);   
+        globalScene = prepareScene(globalScene);
         
     });
        
