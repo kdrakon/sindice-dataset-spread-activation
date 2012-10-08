@@ -340,7 +340,7 @@ function prepareUI(){
     var ch = $('#canvas-holder');
     ch.mousemove(function(e){
         
-        globalScene = prepareScene(globalScene);
+        //globalScene = prepareScene(globalScene);
         
     });
        
