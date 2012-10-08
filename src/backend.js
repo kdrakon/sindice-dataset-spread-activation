@@ -1,6 +1,7 @@
 /**
  * Author: Sean Policarpio
  * Date: 08.09.2012 19:13:27
+ * 
  * About: A Node.js backend for the SPARQL spread activiation visualisation for the Sindice Dataset Summary Graph
  * 
  */

@@ -111,7 +111,7 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
 }
 
 /* Plots the 3D generated planets in the galaxy model on to the scene */
-function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
+function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edges, edge_color){
     
     // compute the ring distance that the planets should be positioned around the domain
     var numOfPlanets = _.keys(galaxy).length;
@@ -120,12 +120,6 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     if (numOfPlanets == 0){
         return;
     }
-    
-    // boolean value from HTML UI for edge rendering
-    var edges = $('#edges').prop("checked");
-    
-    // reserved for highlight node which this function returns
-    var highlight;
     
     // rotation calculations for planets
     var galaxyRadius = radius;
@@ -137,9 +131,6 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
     currentPlotPosition.copy(plotCentre);    
     currentPlotPosition.setZ(currentPlotPosition.z + galaxyRadius); // move towards user
     
-    // calculate this distances for determining the highlight node
-    var distanceFromCameraToTarget = globalCamera.position.distanceTo(globalControls.target);
-    
     // for each sector (index) and subsectors (subindexes), plot the sphere planets in the scene
     _.each(galaxy, function(sector, sector_id){
        
@@ -148,19 +139,6 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         // plot the current planet
         sector.planet.position.copy(currentPlotPosition);
         scene.add(sector.planet);
-        
-        // create a label and highlight at this planet IF the camera is close enough and the node is in view
-        var distanceToCamera = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
-        var distanceToTarget = currentPlotPosition.distanceTo(globalControls.target)
-        if (distanceToCamera < minNodeDistance.val && distanceToTarget < distanceFromCameraToTarget){
-            // keep track of the shortest distance
-            minNodeDistance.val = distanceToCamera;
-            // update the label
-            $('#node-label').text(sector.uri);
-            // create the highlight node and set its position
-            highlight = new THREE.Mesh( new THREE.SphereGeometry(sector.planet.boundRadius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), new THREE.MeshLambertMaterial({ color: HIGHLIGHT_COLOR }));
-            highlight.position.copy(sector.planet.position);
-        }
         
         // append a navigation link
         appendNavigationLink(sector.uri, currentPlotPosition);
@@ -175,11 +153,7 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         }   
     
         // next, recursively plot the moons around this planet
-        var ret_highlight = plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), MOON_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), MOON_EDGE_COLOR);
-        // check if the recursive call returned a highlight node: replace it if it did
-        if (ret_highlight !== undefined){
-            highlight = ret_highlight;
-        }
+        plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), MOON_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), edges, MOON_EDGE_COLOR);
         
         // rotate the plot position for the next sectors to use
         var z = plotCentre.z + (galaxyRadius * Math.cos(currentRotation));
@@ -190,10 +164,7 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edge_color){
         // increment rotation for next sectors planet
         currentRotation += rotationAngle;            
         
-    });
-    
-    // return the highlight node created while plotting the planets
-    return highlight;
+    });    
     
 }
 /* Prepare the scene before rendering */
@@ -210,11 +181,34 @@ function prepareScene(scene){
     // clear the navigation links
     clearNavigationLinks();
     
-    // recursively plot the generated planet nodes from the model and get the highlight node
-    var highlightNode = plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), PLANET_EDGE_COLOR);
-    scene.add(highlightNode); //add the highlight
+    // recursively plot the generated planet nodes from the model
+    plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), $('#edges').prop("checked"), PLANET_EDGE_COLOR);
     
     return scene;
+    
+}
+
+/* 
+ * Based on the current position of the camera, this function will determine the closest planet that the user 
+ * is most likely viewing.
+ */ 
+function plotHighlightNode(galaxy, scene, camera){
+    
+    // calculate this distances for determining the highlight node
+    //var distanceFromCameraToTarget = globalCamera.position.distanceTo(globalControls.target);
+    
+    // create a label and highlight at this planet IF the camera is close enough and the node is in view
+    //var distanceToCamera = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
+    //var distanceToTarget = currentPlotPosition.distanceTo(globalControls.target)
+    //if (distanceToCamera < minNodeDistance.val && distanceToTarget < distanceFromCameraToTarget){
+        //// keep track of the shortest distance
+        //minNodeDistance.val = distanceToCamera;
+        //// update the label
+        //$('#node-label').text(sector.uri);
+        //// create the highlight node and set its position
+        //highlight = new THREE.Mesh( new THREE.SphereGeometry(sector.planet.boundRadius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), new THREE.MeshLambertMaterial({ color: HIGHLIGHT_COLOR }));
+        //highlight.position.copy(sector.planet.position);
+    //}
     
 }
 
