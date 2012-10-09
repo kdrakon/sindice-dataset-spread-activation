@@ -34,11 +34,11 @@ var GEOMETRIC_SEGMENTS = 8;
 var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0x405744, PLANET_EDGE_COLOR = 0x405744;
 var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326, HIGHLIGHT_COLOR = 0xF58718;
-var MIN_DISTANCE_FOR_LABELS = 100;
+var MIN_DISTANCE_FOR_HIGHLIGHT = 100;
 
 var globalScene, globalRenderer, globalCamera, globalControls;
 var galaxyModel = {};
-var minNodeDistance = { 'val' : MIN_DISTANCE_FOR_LABELS, 'reset' : function(){this.val=MIN_DISTANCE_FOR_LABELS;}};
+var highlightNode;
 
 /********************************************************************
  * Three.js Methods
@@ -49,13 +49,13 @@ function sqr(x) { return x*x; }
 /* prepare THREE.js environment */
 function prepare3JS(){
     
-    var ch = $('#canvas-holder');
-    W = ch.width(); H = ch.height();
+    var container = $('#canvas-holder'); 
+    W = container.width(); H = container.height();
     
     globalRenderer = new THREE.CanvasRenderer();
     globalRenderer.setSize(W, H);
     
-    globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 10000);
+    globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 5000);
     globalCamera.position = new THREE.Vector3(0, 25, 250);
     
     // attach the trackballcontrols to the camera
@@ -63,7 +63,6 @@ function prepare3JS(){
     globalControls.noPan = true;
     globalControls.target.set( 0, 0, 0 );
     
-    var container = $('#canvas-holder'); 
     container.append(globalRenderer.domElement);
     
 }
@@ -73,8 +72,34 @@ function create3DModel(model){
     
     // reset the object containing the 3D model
     galaxyModel = {};
+    
     // create the planet nodes with the domain URI as the root
     generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR); 
+    
+}
+
+/* Render the scene */
+function renderModel(renderer, scene, camera){
+    
+    // update the trackball controls movements
+    globalControls.update();
+    
+    // re-render the scene
+    renderer.clear();    
+    renderer.render(scene, camera);    
+}
+
+/* 
+ * Animate/render the model 
+ */
+function animate(){    
+
+    setInterval(function(){
+        // TODO replace with requestanimationframe
+        
+        // render the changes
+        renderModel(globalRenderer, globalScene, globalCamera);
+    }, 13);
     
 }
 
@@ -113,10 +138,8 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
 /* Plots the 3D generated planets in the galaxy model on to the scene */
 function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edges, edge_color){
     
-    // compute the ring distance that the planets should be positioned around the domain
-    var numOfPlanets = _.keys(galaxy).length;
-    
     // first check if this galaxy (or sub-galaxy/moons) has any planets. if not, skip this iteration
+    var numOfPlanets = _.keys(galaxy).length;
     if (numOfPlanets == 0){
         return;
     }
@@ -175,9 +198,6 @@ function prepareScene(scene){
     // reset the scene where all 3D objects will be appended
     scene = new THREE.Scene();
     
-    // reset the variable for determining the closest node and highlight       
-    minNodeDistance.reset();
-    
     // clear the navigation links
     clearNavigationLinks();
     
@@ -189,52 +209,85 @@ function prepareScene(scene){
 }
 
 /* 
- * Based on the current position of the camera, this function will determine the closest planet that the user 
- * is most likely viewing.
+ * Based on the current position of the camera, this recursive function will determine the closest planet that the user 
+ * is most likely viewing. It will also return the radius of the highlight node as well as other useful
+ * data.
  */ 
-function plotHighlightNode(galaxy, scene, camera){
+function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, currentTarget){
+    
+    // define the position and radius of the highlight
+    var highlightPosition = new THREE.Vector3();
+    var radius = 0.0;
+    var sectorURI = "";
     
     // calculate this distances for determining the highlight node
-    //var distanceFromCameraToTarget = globalCamera.position.distanceTo(globalControls.target);
+    var distanceFromCameraToTarget = cameraPosition.distanceTo(currentTarget);
     
-    // create a label and highlight at this planet IF the camera is close enough and the node is in view
-    //var distanceToCamera = currentPlotPosition.distanceTo(globalCamera.position) - sector.planet.boundRadius;
-    //var distanceToTarget = currentPlotPosition.distanceTo(globalControls.target)
-    //if (distanceToCamera < minNodeDistance.val && distanceToTarget < distanceFromCameraToTarget){
-        //// keep track of the shortest distance
-        //minNodeDistance.val = distanceToCamera;
-        //// update the label
-        //$('#node-label').text(sector.uri);
-        //// create the highlight node and set its position
-        //highlight = new THREE.Mesh( new THREE.SphereGeometry(sector.planet.boundRadius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), new THREE.MeshLambertMaterial({ color: HIGHLIGHT_COLOR }));
-        //highlight.position.copy(sector.planet.position);
-    //}
-    
-}
-
-/* Render a scene */
-function renderModel(renderer, scene, camera){
-    
-    // update the trackball controls movements
-    globalControls.update();
-    
-    // re-render the scene
-    renderer.clear();    
-    renderer.render(scene, camera);
-    
-}
-
-/* 
- * Animate/render the model 
- */
-function animate(){    
-
-    setInterval(function(){
-        // TODO replace with requestanimationframe
+    _.each(galaxy, function(sector, sector_id){
         
-        // render the changes
-        renderModel(globalRenderer, globalScene, globalCamera);
-    }, 13);
+        // create a label and highlight at this planet IF the camera is close enough and the node is in view
+        var distanceToCamera = sector.planet.position.distanceTo(cameraPosition) - sector.planet.boundRadius;
+        
+        if (distanceToCamera < minNodeDistance){
+            // mark the position and get the radius
+            highlightPosition.copy(sector.planet.position);
+            radius = sector.planet.boundRadius;
+            
+            // keep track of the shortest distance
+            minNodeDistance = distanceToCamera;
+            
+            // save the URI
+            sectorURI = sector.uri;
+            
+            // now recursively check if this planets sub-planets are even closer
+            var numOfSubPlanets = _.keys(sector.moons).length;
+            if (numOfSubPlanets){
+                var ret = determineHighlightPosition(minNodeDistance, sector.moons, cameraPosition, currentTarget);
+                
+                // replace the highlight position et. al if its closer; if not, ignore the returned values
+                if (distanceToCamera > ret.minNodeDistance){                
+                    highlightPosition.copy(ret.highlightPosition);
+                    radius = ret.radius;       
+                    minNodeDistance = ret.minNodeDistance;
+                    sectorURI = ret.sectorURI;         
+                }
+            }
+        }
+    
+    });
+    
+    return {'highlightPosition':highlightPosition, 'radius':radius, 'minNodeDistance':minNodeDistance, 'sectorURI':sectorURI};    
+}
+
+/*
+ * This method will plot the highlight node on the scene as well as provide the label for the currently
+ * highlighted node.
+ */
+function plotHighlightNode(scene, galaxy, cameraPosition, controlsTarget){
+    
+    // first check if the scene even exists yet
+    if (scene !== undefined){
+        
+        // remove the highlightnode (global) first
+        scene.remove(highlightNode);
+        
+        // determine the highlight nodes position and other parameters
+        var ret = determineHighlightPosition(MIN_DISTANCE_FOR_HIGHLIGHT, galaxy, cameraPosition, controlsTarget);
+    
+        // create a new highlight node which will be added to the scene
+        highlightNode = new THREE.Mesh( 
+            new THREE.SphereGeometry(ret.radius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), 
+            new THREE.MeshBasicMaterial({ color: HIGHLIGHT_COLOR })
+        );        
+        highlightNode.position.copy(ret.highlightPosition);
+        
+        // set the node label on the view
+        $('#node-label').text(ret.sectorURI);
+
+        // finally, add the highlight node
+        scene.add(highlightNode);
+        
+    }   
     
 }
 
@@ -330,12 +383,10 @@ function prepareUI(){
         }, 100);        
     });
     
-    // whenever the user clicks on the canvas, re-plot the nodes and determine the highlight
+    // whenever the hovers over the canvas, re-plot the highlight node and show the nodes URI
     var ch = $('#canvas-holder');
-    ch.mousemove(function(e){
-        
-        //globalScene = prepareScene(globalScene);
-        
+    ch.mousemove(function(){        
+        plotHighlightNode(globalScene, galaxyModel, globalCamera.position, globalControls.target);        
     });
        
 }
