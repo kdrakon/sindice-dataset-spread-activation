@@ -31,10 +31,13 @@
  *******************************************************************/
 var W = 800, H = 500; // these will be overwritten by the actual size of the canvases div
 var GEOMETRIC_SEGMENTS = 8;
-var PLANET_DISTANCE_TO_CENTRE = 100, MOON_DISTANCE_TO_CENTRE = 15;
 var MOON_EDGE_COLOR = 0x405744, PLANET_EDGE_COLOR = 0x405744;
 var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326, HIGHLIGHT_COLOR = 0xF58718;
 var MIN_DISTANCE_FOR_HIGHLIGHT = 100;
+var PLANET_RADIUS_FACTOR = 5;
+var RADIUS_OF_BIGGEST_NODE = 0; // these will be overwritten when the model is generated
+var PLANET_DISTANCE_FACTOR = 20;
+var MOON_DISTANCE_FACTOR = 1/4;
 
 var globalScene, globalRenderer, globalCamera, globalControls;
 var galaxyModel = {};
@@ -56,25 +59,15 @@ function prepare3JS(){
     globalRenderer.setSize(W, H);
     
     globalCamera = new THREE.PerspectiveCamera(45, W/H, 0.1, 5000);
-    globalCamera.position = new THREE.Vector3(0, 25, 250);
+    globalCamera.position = new THREE.Vector3(0, 25, 175);
     
     // attach the trackballcontrols to the camera
     globalControls = new THREE.TrackballControls( globalCamera, globalRenderer.domElement );
     globalControls.noPan = true;
+    globalControls.rotateSpeed = 0.5;
     globalControls.target.set( 0, 0, 0 );
     
     container.append(globalRenderer.domElement);
-    
-}
- 
-/* will construct and return the whole 3D model in a Three.js scene */
-function create3DModel(model){
-    
-    // reset the object containing the 3D model
-    galaxyModel = {};
-    
-    // create the planet nodes with the domain URI as the root
-    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR); 
     
 }
 
@@ -103,6 +96,17 @@ function animate(){
     
 }
 
+/* will construct and return the whole 3D model in a Three.js scene */
+function create3DModel(model){
+    
+    // reset the object containing the 3D model
+    galaxyModel = {};
+    
+    // create the planet nodes with the domain URI as the root
+    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR); 
+    
+}
+
 /* recursive function for activation model that will create the 3D node planets */
 function generate3DPlanets(model, URIIndex, galaxy, node_color){
     
@@ -117,7 +121,8 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
         if(node[PARENT] == URIIndex){
             
             // create child planet sphere
-            var planet = new THREE.Mesh( new THREE.SphereGeometry(node[A] * 10, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
+            var radius = node[A] * PLANET_RADIUS_FACTOR;
+            var planet = new THREE.Mesh( new THREE.SphereGeometry(radius, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
 
             // append the planet and text to the array
             galaxy[sector] = { 'planet' : planet, 'uri' : URIkey, 'moons' : {} };            
@@ -126,6 +131,11 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
             delete model.nodes[URIkey]; 
             // recursively create child planets
             generate3DPlanets(model, URIkey, galaxy[sector].moons, MOON_COLOR);
+            
+            // replace PLANET_DISTANCE_TO_CENTRE with the greatest sized radius*2
+            if (radius > RADIUS_OF_BIGGEST_NODE){
+                RADIUS_OF_BIGGEST_NODE = radius;
+            }
             
             // increment to next sector
             sector++;
@@ -136,7 +146,7 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
 }
 
 /* Plots the 3D generated planets in the galaxy model on to the scene */
-function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edges, edge_color){
+function plotPlanetsInScene(galaxy, scene, plotCentre, galaxyRadius, edges, edge_color){
     
     // first check if this galaxy (or sub-galaxy/moons) has any planets. if not, skip this iteration
     var numOfPlanets = _.keys(galaxy).length;
@@ -145,7 +155,6 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edges, edge_color
     }
     
     // rotation calculations for planets
-    var galaxyRadius = radius;
     var rotationAngle = (360 / numOfPlanets) * (Math.PI / 180);  
     var currentRotation = rotationAngle;
 
@@ -176,7 +185,7 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, radius, edges, edge_color
         }   
     
         // next, recursively plot the moons around this planet
-        plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), MOON_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), edges, MOON_EDGE_COLOR);
+        plotPlanetsInScene(sector.moons, scene, new THREE.Vector3(currentPlotPosition.x, currentPlotPosition.y, currentPlotPosition.z), galaxyRadius * MOON_DISTANCE_FACTOR, edges, MOON_EDGE_COLOR);
         
         // rotate the plot position for the next sectors to use
         var z = plotCentre.z + (galaxyRadius * Math.cos(currentRotation));
@@ -202,7 +211,7 @@ function prepareScene(scene){
     clearNavigationLinks();
     
     // recursively plot the generated planet nodes from the model
-    plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, PLANET_DISTANCE_TO_CENTRE * $('#plotDistanceFactor').val(), $('#edges').prop("checked"), PLANET_EDGE_COLOR);
+    plotPlanetsInScene(galaxyModel, scene, centreOfUniverse, RADIUS_OF_BIGGEST_NODE * PLANET_DISTANCE_FACTOR, $('#edges').prop("checked"), PLANET_EDGE_COLOR);
     
     return scene;
     
@@ -211,7 +220,7 @@ function prepareScene(scene){
 /* 
  * Based on the current position of the camera, this recursive function will determine the closest planet that the user 
  * is most likely viewing. It will also return the radius of the highlight node as well as other useful
- * data.
+ * data. TODO: a better way to implement this may be using a "ray" from the cameras POV
  */ 
 function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, currentTarget){
     
@@ -220,12 +229,9 @@ function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, cur
     var radius = 0.0;
     var sectorURI = "";
     
-    // calculate this distances for determining the highlight node
-    var distanceFromCameraToTarget = cameraPosition.distanceTo(currentTarget);
-    
     _.each(galaxy, function(sector, sector_id){
         
-        // create a label and highlight at this planet IF the camera is close enough and the node is in view
+        // create a label and highlight at this planet IF the camera is close enough
         var distanceToCamera = sector.planet.position.distanceTo(cameraPosition) - sector.planet.boundRadius;
         
         if (distanceToCamera < minNodeDistance){
@@ -297,9 +303,17 @@ function plotHighlightNode(scene, galaxy, cameraPosition, controlsTarget){
 function pointCamera(x,y,z){
     
     // TODO Zoom in on node
-    
     globalControls.target.copy(new THREE.Vector3(x,y,z));    
     
+}
+
+/*
+ * Reset the Trackball controls back on the center of the scene
+ */
+function resetView(){
+    if (globalControls !== undefined){
+        globalControls.target.copy(new THREE.Vector3(0,0,0));
+    } 
 }
 
 
@@ -355,8 +369,13 @@ function clearNavigationLinks(){
 function prepareUI(){
     
     // get the activation model and generate the 3D model from it
-    $('#createModel').click(function(){
+    $('#createModel').button().click(function(){
         generateModel($('#domainURI').val(), $('#card').val(), $('#init_A').val(), $('#f').val(), $('#d').val());
+    });
+    
+    // reset the camera
+    $('#resetView').button().click(function(){
+        resetView();
     });
     
     // have the navigation menu slide away/in
@@ -383,12 +402,34 @@ function prepareUI(){
         }, 100);        
     });
     
-    // whenever the hovers over the canvas, re-plot the highlight node and show the nodes URI
+    // whenever the user hovers over the canvas, re-plot the highlight node and show the nodes URI
     var ch = $('#canvas-holder');
     ch.mousemove(function(){        
         plotHighlightNode(globalScene, galaxyModel, globalCamera.position, globalControls.target);        
     });
-       
+    
+    // show an "About" dialog
+    $('#openAbout').button().click(function(){
+            $('#about-dialog').dialog("open");
+    });
+    $('#about-dialog').dialog({
+        autoOpen : false,
+        modal : true,
+        resizable: false,
+        title: "About"
+    });
+    
+    // show a "Help" dialog
+    $('#openHelp').button().click(function(){
+            $('#help-dialog').dialog("open");
+    });
+    $('#help-dialog').dialog({
+        autoOpen : false,
+        modal : true,
+        resizable: false,
+        title: "Help"
+    });    
+    
 }
 
 /*******************************************************************

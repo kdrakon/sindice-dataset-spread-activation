@@ -1,104 +1,69 @@
 <!DOCTYPE html>
 
 <head>
-<title>Sindice DataScapes - Dataset Analytics Visualisations</title>
+    <title>Sindice DataScapes - Dataset Analytics Visualisations</title>
 </head>
 
 <script src="js/lib/jquery.min.js"></script>
+<script src="js/lib/jquery-ui-1.9.0.custom/js/jquery-ui-1.9.0.custom.min.js"></script>
 <script src="js/lib/underscore.js"></script>
 <script src="js/lib/backbone.js"></script>
 <script src="js/lib/three.js"></script>
 <script src="js/lib/fonts/helvetiker_regular.typeface.js"></script>
 <script src="js/spread-act-visual.js"></script>
 
-<style>
-    
-body {
-    font: 12px/18px "Lucida Grande", "Lucida Sans Unicode", Helvetica, Arial, Verdana, sans-serif;
-}
-
-header {
-    width:66%;
-    text-align:right;
-    padding-top: 0.5em;
-    font-size: 32pt;
-    color: #008CC3;
-}
-
-#page-subtitle {
-    color: black;
-    font-size:14pt;
-}
-
-.shoulder {
-    box-shadow: 4px 4px 10px #888888;
-}
-
-#datasetSelection {
-    color: #808080;
-    text-align:right;
-}
-
-#canvas-holder {
-    
-    background: rgb(225,255,255); /* Old browsers */
-    /* IE9 SVG, needs conditional override of 'filter' to 'none' */
-    background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIxMiUiIHN0b3AtY29sb3I9IiNlMWZmZmYiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMiUiIHN0b3AtY29sb3I9IiNmZGZmZmYiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMiUiIHN0b3AtY29sb3I9IiNlMWZmZmYiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIzMCUiIHN0b3AtY29sb3I9IiNlNmY4ZmQiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NCUiIHN0b3AtY29sb3I9IiNjOGVlZmIiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSI3NSUiIHN0b3AtY29sb3I9IiNiZWU0ZjgiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYjFkOGY1IiBzdG9wLW9wYWNpdHk9IjEiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9InVybCgjZ3JhZC11Y2dnLWdlbmVyYXRlZCkiIC8+Cjwvc3ZnPg==);
-    background: -moz-linear-gradient(top,  rgba(225,255,255,1) 12%, rgba(253,255,255,1) 12%, rgba(225,255,255,1) 12%, rgba(230,248,253,1) 30%, rgba(200,238,251,1) 54%, rgba(190,228,248,1) 75%, rgba(177,216,245,1) 100%); /* FF3.6+ */
-    background: -webkit-gradient(linear, left top, left bottom, color-stop(12%,rgba(225,255,255,1)), color-stop(12%,rgba(253,255,255,1)), color-stop(12%,rgba(225,255,255,1)), color-stop(30%,rgba(230,248,253,1)), color-stop(54%,rgba(200,238,251,1)), color-stop(75%,rgba(190,228,248,1)), color-stop(100%,rgba(177,216,245,1))); /* Chrome,Safari4+ */
-    background: -webkit-linear-gradient(top,  rgba(225,255,255,1) 12%,rgba(253,255,255,1) 12%,rgba(225,255,255,1) 12%,rgba(230,248,253,1) 30%,rgba(200,238,251,1) 54%,rgba(190,228,248,1) 75%,rgba(177,216,245,1) 100%); /* Chrome10+,Safari5.1+ */
-    background: -o-linear-gradient(top,  rgba(225,255,255,1) 12%,rgba(253,255,255,1) 12%,rgba(225,255,255,1) 12%,rgba(230,248,253,1) 30%,rgba(200,238,251,1) 54%,rgba(190,228,248,1) 75%,rgba(177,216,245,1) 100%); /* Opera 11.10+ */
-    background: -ms-linear-gradient(top,  rgba(225,255,255,1) 12%,rgba(253,255,255,1) 12%,rgba(225,255,255,1) 12%,rgba(230,248,253,1) 30%,rgba(200,238,251,1) 54%,rgba(190,228,248,1) 75%,rgba(177,216,245,1) 100%); /* IE10+ */
-    background: linear-gradient(to bottom,  rgba(225,255,255,1) 12%,rgba(253,255,255,1) 12%,rgba(225,255,255,1) 12%,rgba(230,248,253,1) 30%,rgba(200,238,251,1) 54%,rgba(190,228,248,1) 75%,rgba(177,216,245,1) 100%); /* W3C */
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#e1ffff', endColorstr='#b1d8f5',GradientType=0 ); /* IE6-8 */
-
-
-}
-
-#node-label {
-    text-align: center;
-    font-size: 3em;
-    padding-top: 0.5em;
-    color: black;
-}
-
-.model-link{
-    cursor: pointer;
-    padding-left: 1em;
-}
-    
-</style>
+<link rel="stylesheet" type="text/css" href="ui.css" />
+<link rel="stylesheet" type="text/css" href="js/lib/jquery-ui-1.9.0.custom/css/jqueryUI-custom/jquery-ui-1.9.0.custom.min.css" />
 
 <body>
-    
+
 <header>
     <img id="sindice-logo" src="images/sindice-logo-with-slogan-shiny-240x75.png" style="float:left;" />
     <span id="page-title">DataScapes</span>
     <p id="page-subtitle">Dataset Analytic Visualisations</p>
 </header>
 
-<div id="datasetSelection" style="clear:both; border-style:none;  border-color:#808080; width:66%; padding:0.5em;">
-    Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
-    <input type="button" id="createModel" value="Create Model" />
-</div>    
+<div id="menu" style="clear:both; border-style:none;  border-color:#808080; width:66%; padding-top:0.5em; padding-bottom:0.5em;">
+    <input type="button" id="openAbout" value="About" />
+    <input type="button" id="openHelp" value="Help" />   
+    <div id="datasetSelection">
+        Dataset Domain <input type="text" id="domainURI" value="bbc.co.uk" />
+        <input type="button" id="createModel" value="Create Model" />
+        <input type="button" id="resetView" value="Reset View" />
+    </div>    
+</div> 
 
 <div id="view">
-    <div id="canvas-holder" style="border-style:solid; border-width:1px; border-color:#808080; float:left; width:66%; height:498px; overflow:hidden; "></div>
+    <div id="canvas-holder" style="border-style:solid; border-width:1px; border-color:#808080; float:left; width:66%; height:398px; overflow:hidden; "></div>
     <div id="node-label" style="border-style:none; position:absolute; width:66%; height:1em; overflow:hidden;"></div>
 </div>
 
-<div id="nav-shoulder" class="shoulder" style="border-style:none; float:left; width:10px; height:500px; background-color:#008CC3;"></div>
-<div id="nav" style="border-style:none; float:left; width:0px; height:500px; overflow:auto;"></div>
+<div id="nav-shoulder" class="shoulder" style="border-style:none; float:left; width:10px; height:400px; background-color:#008CC3;"></div>
+<div id="nav" style="border-style:none; float:left; width:0px; height:400px; overflow:auto;"></div>
 
 <div id="control-panel-shoulder" class="shoulder" style="border-style:none; clear:both; width:66%; height:10px; background-color:#008CC3;"></div>
-<div id="control-panel" style="border-style:none; clear:both; width:66%; height:0px; padding-top:1em; overflow:hidden;">    
-    Edges <input type="checkbox" id="edges" />
-    Plot Distance Factor <input type="number" id="plotDistanceFactor" value="1" step="0.1" />
-    <br>
-    Minimum Cardinality <input type="number" id="card" value="100" />
-    Init Activation <input type="number" id="init_A" value="0.1" step="0.1" />
-    Firing Limit <input type="number" id="f" value="0.1" step="0.1" />
-    Decay Rate <input type="number" id="d" value="0.00001" step="0.00001" />    
+<div id="control-panel" style="border-style:none; clear:both; width:200px; height:0px; padding-top:1em; overflow:hidden;">    
+    Edges <input type="checkbox" id="edges" /><br>
+    Minimum Cardinality <input type="number" id="card" value="100" /><br>
+    Init Activation <input type="number" id="init_A" value="0.1" step="0.1" /><br>
+    Firing Limit <input type="number" id="f" value="0.1" step="0.1" /><br>
+    Decay Rate <input type="number" id="d" value="0.00001" step="0.00001" /><br>    
 </div>
 
+<!-- dialog stuff -->
+
+<div id="about-dialog">
+    <p>"About" goes here.</p>
+</div>
+
+<div id="help-dialog">
+    <p>"Help" goes here.</p>
+</div>
+
+<footer>
+    Beta 
+</footer>
+
 </body>
+
+</html>
