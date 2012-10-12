@@ -38,10 +38,13 @@ var PLANET_RADIUS_FACTOR = 5;
 var RADIUS_OF_BIGGEST_NODE = 0; // these will be overwritten when the model is generated
 var PLANET_DISTANCE_FACTOR = 20;
 var MOON_DISTANCE_FACTOR = 1/4;
+var MANUAL_ZOOM_SPEED_FACTOR = 1/100
 
 var globalScene, globalRenderer, globalCamera, globalControls;
-var galaxyModel = {};
 var highlightNode;
+// TODO document the following data objects
+var galaxyModel = {};
+var globalManualZoom = {};
 
 /********************************************************************
  * Three.js Methods
@@ -66,6 +69,7 @@ function prepare3JS(){
     globalControls.noPan = true;
     globalControls.rotateSpeed = 0.5;
     globalControls.target.set( 0, 0, 0 );
+    globalControls.keys[1] = 90; // sets 'z' as the zoom key
     
     container.append(globalRenderer.domElement);
     
@@ -77,6 +81,18 @@ function renderModel(renderer, scene, camera){
     // update the trackball controls movements
     globalControls.update();
     
+    // perform any manual zooming
+    if (globalManualZoom.steps !== undefined){
+        // if the zoom has any steps, perform the zoom and decrement the steps
+        if (globalManualZoom.steps > 0){
+            globalCamera.position.setZ(globalCamera.position.z - globalManualZoom.delta);
+            globalManualZoom.steps--;
+        } else {
+            // reset the zoom so its not performed any more
+            globalManualZoom = {};
+        }        
+    }
+    
     // re-render the scene
     renderer.clear();    
     renderer.render(scene, camera);    
@@ -87,11 +103,12 @@ function renderModel(renderer, scene, camera){
  */
 function animate(){    
 
+    // TODO replace with requestanimationframe
     setInterval(function(){
-        // TODO replace with requestanimationframe
         
         // render the changes
         renderModel(globalRenderer, globalScene, globalCamera);
+        
     }, 13);
     
 }
@@ -219,92 +236,74 @@ function prepareScene(scene){
 }
 
 /* 
+ * -DEPRECATED-
  * Based on the current position of the camera, this recursive function will determine the closest planet that the user 
  * is most likely viewing. It will also return the radius of the highlight node as well as other useful
  * data. TODO: a better way to implement this may be using a "ray" from the cameras POV
  */ 
-function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, currentTarget){
+//function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, currentTarget){
     
-    // define the position and radius of the highlight
-    var highlightPosition = new THREE.Vector3();
-    var radius = 0.0;
-    var sectorURI = "";
+    //// define the position and radius of the highlight
+    //var highlightPosition = new THREE.Vector3();
+    //var radius = 0.0;
+    //var sectorURI = "";
     
-    _.each(galaxy, function(sector, sector_id){
+    //_.each(galaxy, function(sector, sector_id){
         
-        // create a label and highlight at this planet IF the camera is close enough
-        var distanceToCamera = sector.planet.position.distanceTo(cameraPosition) - sector.planet.boundRadius;
+        //// create a label and highlight at this planet IF the camera is close enough
+        //var distanceToCamera = sector.planet.position.distanceTo(cameraPosition) - sector.planet.boundRadius;
         
-        if (distanceToCamera < minNodeDistance){
-            // mark the position and get the radius
-            highlightPosition.copy(sector.planet.position);
-            radius = sector.planet.boundRadius;
+        //if (distanceToCamera < minNodeDistance){
+            //// mark the position and get the radius
+            //highlightPosition.copy(sector.planet.position);
+            //radius = sector.planet.boundRadius;
             
-            // keep track of the shortest distance
-            minNodeDistance = distanceToCamera;
+            //// keep track of the shortest distance
+            //minNodeDistance = distanceToCamera;
             
-            // save the URI
-            sectorURI = sector.planet.uri;
+            //// save the URI
+            //sectorURI = sector.planet.uri;
             
-            // now recursively check if this planets sub-planets are even closer
-            var numOfSubPlanets = _.keys(sector.moons).length;
-            if (numOfSubPlanets){
-                var ret = determineHighlightPosition(minNodeDistance, sector.moons, cameraPosition, currentTarget);
+            //// now recursively check if this planets sub-planets are even closer
+            //var numOfSubPlanets = _.keys(sector.moons).length;
+            //if (numOfSubPlanets){
+                //var ret = determineHighlightPosition(minNodeDistance, sector.moons, cameraPosition, currentTarget);
                 
-                // replace the highlight position et. al if its closer; if not, ignore the returned values
-                if (distanceToCamera > ret.minNodeDistance){                
-                    highlightPosition.copy(ret.highlightPosition);
-                    radius = ret.radius;       
-                    minNodeDistance = ret.minNodeDistance;
-                    sectorURI = ret.sectorURI;         
-                }
-            }
-        }
+                //// replace the highlight position et. al if its closer; if not, ignore the returned values
+                //if (distanceToCamera > ret.minNodeDistance){                
+                    //highlightPosition.copy(ret.highlightPosition);
+                    //radius = ret.radius;       
+                    //minNodeDistance = ret.minNodeDistance;
+                    //sectorURI = ret.sectorURI;         
+                //}
+            //}
+        //}
     
-    });
+    //});
     
-    return {'highlightPosition':highlightPosition, 'radius':radius, 'minNodeDistance':minNodeDistance, 'sectorURI':sectorURI};    
-}
-
-/*
- * This method will plot the highlight node on the scene as well as provide the label for the currently
- * highlighted node.
- */
-function plotHighlightNode(scene, galaxy, cameraPosition, controlsTarget){
-    
-    // first check if the scene even exists yet
-    if (scene !== undefined){
-        
-        // remove the highlightnode (global) first
-        scene.remove(highlightNode);
-        
-        // determine the highlight nodes position and other parameters
-        var ret = determineHighlightPosition(MIN_DISTANCE_FOR_HIGHLIGHT, galaxy, cameraPosition, controlsTarget);
-    
-        // create a new highlight node which will be added to the scene
-        highlightNode = new THREE.Mesh( 
-            new THREE.SphereGeometry(ret.radius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), 
-            new THREE.MeshBasicMaterial({ color: HIGHLIGHT_COLOR })
-        );        
-        highlightNode.position.copy(ret.highlightPosition);
-        
-        // set the node label on the view
-        $('#node-label').text(ret.sectorURI);
-
-        // finally, add the highlight node
-        scene.add(highlightNode);
-        
-    }   
-    
-}
+    //return {'highlightPosition':highlightPosition, 'radius':radius, 'minNodeDistance':minNodeDistance, 'sectorURI':sectorURI};    
+//}
 
 /*
  * Will focus the camera on a vector position given
  */
-function pointCamera(x,y,z){
+function focusOnNode(x,y,z){
     
-    // TODO Zoom in on node
-    globalControls.target.copy(new THREE.Vector3(x,y,z));    
+    // create the zooming variable
+    var target = new THREE.Vector3(x,y,z);
+    var distance = globalCamera.position.distanceTo(target);
+    var step = distance * MANUAL_ZOOM_SPEED_FACTOR;
+    
+    // check if steps should increase or decrease based on position
+    if (z > globalCamera.position.z){
+        step = step * -1;
+    }
+    
+    // the following object is referred to in the render method to determine zooming
+    globalManualZoom = { 'steps':1/MANUAL_ZOOM_SPEED_FACTOR, 'delta':step };
+    
+    // set the trackball controls new target
+    globalControls.target.copy(target);
     
 }
 
@@ -318,12 +317,18 @@ function resetView(){
 }
 
 /*
- * Determine node selection from the user.
+ * Recursively determine node selection from the user.
  * From: http://stackoverflow.com/questions/11036106/three-js-projector-and-ray-objects
  */
-function selectNode(galaxy, camera, mouseX, mouseY){
+function selectNode(galaxy, scene, camera, mouseX, mouseY){
     
-    // copy the 2D mouse vector
+    // first check if this galaxy (or sub-galaxy/moons) has any planets. if not, skip this iteration
+    var numOfPlanets = _.keys(galaxy).length;
+    if (numOfPlanets == 0){
+        return false;
+    }
+    
+    // copy the 2D mouse vector. The translation is from the DOM window to the Canvas alone
     var mouse3D = new THREE.Vector3();
     mouse3D.x = (mouseX / W) * 2 - 1;
     mouse3D.y = -(mouseY / H) * 2 + 1;
@@ -333,19 +338,59 @@ function selectNode(galaxy, camera, mouseX, mouseY){
     var projector = new THREE.Projector();    
     var ray = projector.pickingRay( mouse3D, camera );
     
-    // now look for any objects that intersect the ray
-    _.each(galaxy, function(sector, sector_id){
+    // now look for any objects that intersect the ray (I use "every" so that it breaks once we find the first intersection)
+    var selectedURI = false;
+    
+    _.every(galaxy, function(sector, sector_id){
        
        var intersects = ray.intersectObject(sector.planet);
        if (intersects.length > 0){
-           // found first intersecting node
-           $('#node-label').text(sector.planet.uri);
+           // found intersecting node: save the label and highlight it
+           selectedURI = sector.planet.uri;
+           plotHighlightNode(scene, sector.planet);
+           return false;           
            
+       // check the children of this node if they were selected               
+       } else if(selectNode(sector.moons, scene, camera, mouseX, mouseY)){
+           // found an intersecting child node
+           return false;
+           
+       }  else {
+           return true; // check next sector
        }
-       
         
     });
+    
+    if (selectedURI != false){
+        $('#node-label').text(selectedURI);
+    }
+    
+    return selectedURI;
+}
 
+/*
+ * This method will plot the highlight node on the scene for a given planet node
+ */
+function plotHighlightNode(scene, planet){
+    
+    // first check if the scene even exists yet
+    if (scene !== undefined){
+        
+        // remove the highlightnode (global) first
+        scene.remove(highlightNode);
+    
+        // create a new highlight node which will be added to the scene
+        highlightNode = new THREE.Mesh( 
+            new THREE.SphereGeometry(planet.boundRadius+0.1, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), 
+            new THREE.MeshBasicMaterial({ color: HIGHLIGHT_COLOR })
+        );        
+        highlightNode.position.copy(planet.position);
+        
+        // finally, add the highlight node
+        scene.add(highlightNode);
+        
+    }   
+    
 }
 
 /*******************************************************************
@@ -382,7 +427,7 @@ function generateModel(dataset_uri, card_limit, init_A, f, d){
 /* Will append a navigation link for a node from the 3D view */
 function appendNavigationLink(URI, vector_location){
     
-    var call = "pointCamera(" + vector_location.x + "," + vector_location.y + "," + vector_location.z + ");";
+    var call = "focusOnNode(" + vector_location.x + "," + vector_location.y + "," + vector_location.z + ");";
     $('#nav').append("<a class='model-link' onclick='" + call + "'>" + URI + "</a><br>");
     
 }
@@ -433,18 +478,13 @@ function prepareUI(){
         }, 100);        
     });
     
-    // whenever the user hovers over the canvas, re-plot the highlight node and show the nodes URI
-    var ch = $('#canvas-holder');
-    ch.mousemove(function(){        
-        //plotHighlightNode(globalScene, galaxyModel, globalCamera.position, globalControls.target);        
-    });
-    
     // when the user double clicks on the canvas, project a ray to determine what node they are clicking on
+    var ch = $('#canvas-holder');
     ch.dblclick(function(e){
         // first get the mouses X and Y coordinates relative to the canvas
         var mouseX = e.pageX - this.offsetLeft;
         var mouseY = e.pageY - this.offsetTop;
-        selectNode(galaxyModel, globalCamera, mouseX, mouseY)
+        selectNode(galaxyModel, globalScene, globalCamera, mouseX, mouseY);
     });
     
     // show an "About" dialog
