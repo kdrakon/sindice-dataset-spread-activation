@@ -123,9 +123,10 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
             // create child planet sphere
             var radius = node[A] * PLANET_RADIUS_FACTOR;
             var planet = new THREE.Mesh( new THREE.SphereGeometry(radius, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
+            planet['uri'] = URIkey;
 
             // append the planet and text to the array
-            galaxy[sector] = { 'planet' : planet, 'uri' : URIkey, 'moons' : {} };            
+            galaxy[sector] = { 'planet' : planet, 'moons' : {} };            
             
             // remove this node from the model since were done with it
             delete model.nodes[URIkey]; 
@@ -173,7 +174,7 @@ function plotPlanetsInScene(galaxy, scene, plotCentre, galaxyRadius, edges, edge
         scene.add(sector.planet);
         
         // append a navigation link
-        appendNavigationLink(sector.uri, currentPlotPosition);
+        appendNavigationLink(sector.planet.uri, currentPlotPosition);
         
         // draw an edge from the plotcentre to this planet if the option is on
         if (edges){
@@ -243,7 +244,7 @@ function determineHighlightPosition(minNodeDistance, galaxy, cameraPosition, cur
             minNodeDistance = distanceToCamera;
             
             // save the URI
-            sectorURI = sector.uri;
+            sectorURI = sector.planet.uri;
             
             // now recursively check if this planets sub-planets are even closer
             var numOfSubPlanets = _.keys(sector.moons).length;
@@ -316,6 +317,36 @@ function resetView(){
     } 
 }
 
+/*
+ * Determine node selection from the user.
+ * From: http://stackoverflow.com/questions/11036106/three-js-projector-and-ray-objects
+ */
+function selectNode(galaxy, camera, mouseX, mouseY){
+    
+    // copy the 2D mouse vector
+    var mouse3D = new THREE.Vector3();
+    mouse3D.x = (mouseX / W) * 2 - 1;
+    mouse3D.y = -(mouseY / H) * 2 + 1;
+    mouse3D.z = 0.5;
+
+    // use the 2D vector with the projector to create a picking ray
+    var projector = new THREE.Projector();    
+    var ray = projector.pickingRay( mouse3D, camera );
+    
+    // now look for any objects that intersect the ray
+    _.each(galaxy, function(sector, sector_id){
+       
+       var intersects = ray.intersectObject(sector.planet);
+       if (intersects.length > 0){
+           // found first intersecting node
+           $('#node-label').text(sector.planet.uri);
+           
+       }
+       
+        
+    });
+
+}
 
 /*******************************************************************
  * General Methods
@@ -405,7 +436,15 @@ function prepareUI(){
     // whenever the user hovers over the canvas, re-plot the highlight node and show the nodes URI
     var ch = $('#canvas-holder');
     ch.mousemove(function(){        
-        plotHighlightNode(globalScene, galaxyModel, globalCamera.position, globalControls.target);        
+        //plotHighlightNode(globalScene, galaxyModel, globalCamera.position, globalControls.target);        
+    });
+    
+    // when the user double clicks on the canvas, project a ray to determine what node they are clicking on
+    ch.dblclick(function(e){
+        // first get the mouses X and Y coordinates relative to the canvas
+        var mouseX = e.pageX - this.offsetLeft;
+        var mouseY = e.pageY - this.offsetTop;
+        selectNode(galaxyModel, globalCamera, mouseX, mouseY)
     });
     
     // show an "About" dialog
