@@ -32,7 +32,7 @@
 var W = 800, H = 500; // these will be overwritten by the actual size of the canvases div
 var GEOMETRIC_SEGMENTS = 8;
 var MOON_EDGE_COLOR = 0x405744, PLANET_EDGE_COLOR = 0x405744;
-var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326, HIGHLIGHT_COLOR = 0xF58718;
+var PLANET_COLOR = 0x008CC3, MOON_COLOR = 0x9765C9, DOMAIN_COLOR = 0x10A326, HIGHLIGHT_COLOR = 0xE0115F;
 var MIN_DISTANCE_FOR_HIGHLIGHT = 100;
 var PLANET_RADIUS_FACTOR = 5;
 var RADIUS_OF_BIGGEST_NODE = 0; // these will be overwritten when the model is generated
@@ -40,7 +40,7 @@ var PLANET_DISTANCE_FACTOR = 20;
 var MOON_DISTANCE_FACTOR = 1/4;
 var MANUAL_ZOOM_SPEED_FACTOR = 1/100
 
-var globalScene, globalRenderer, globalCamera, globalControls;
+var globalScene, globalRenderer, globalCamera, globalControls, globalDomain;
 var highlightNode;
 // TODO document the following data objects
 var galaxyModel = {};
@@ -119,8 +119,11 @@ function create3DModel(model){
     // reset the object containing the 3D model
     galaxyModel = {};
     
+    // save the current domain URI
+    globalDomain = model['domain'];
+    
     // create the planet nodes with the domain URI as the root
-    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR); 
+    generate3DPlanets(model, model['domain'], galaxyModel, PLANET_COLOR);
     
 }
 
@@ -140,7 +143,11 @@ function generate3DPlanets(model, URIIndex, galaxy, node_color){
             // create child planet sphere
             var radius = node[A] * PLANET_RADIUS_FACTOR;
             var planet = new THREE.Mesh( new THREE.SphereGeometry(radius, GEOMETRIC_SEGMENTS, GEOMETRIC_SEGMENTS), sphereMaterial);
+            
+            // copy the attributes from the AJAX model into this new THREE model
             planet['uri'] = URIkey;
+            planet['parent_uri'] = node[PARENT];
+            planet['card'] = node[CARD];
 
             // append the planet and text to the array
             galaxy[sector] = { 'planet' : planet, 'moons' : {} };            
@@ -339,33 +346,42 @@ function selectNode(galaxy, scene, camera, mouseX, mouseY){
     var ray = projector.pickingRay( mouse3D, camera );
     
     // now look for any objects that intersect the ray (I use "every" so that it breaks once we find the first intersection)
-    var selectedURI = false;
+    var output = false;
     
     _.every(galaxy, function(sector, sector_id){
        
-       var intersects = ray.intersectObject(sector.planet);
-       if (intersects.length > 0){
-           // found intersecting node: save the label and highlight it
-           selectedURI = sector.planet.uri;
-           plotHighlightNode(scene, sector.planet);
-           return false;           
+        var intersects = ray.intersectObject(sector.planet);
+        if (intersects.length > 0){
+            // found intersecting node: create the label and highlight it
+            if (sector.planet.parent_uri == globalDomain){
+                output = "Class: " + sector.planet.uri + "<br>";
+                output += "Dataset Cardinality: " + sector.planet.card;
+            } else {
+                output = "Class: " + sector.planet.parent_uri + "<br>";
+                output += "Property: " + sector.planet.uri + "<br>";
+                output += "Dataset Cardinality: " + sector.planet.card;
+            }
+
+            plotHighlightNode(scene, sector.planet);
+            return false;           
            
-       // check the children of this node if they were selected               
-       } else if(selectNode(sector.moons, scene, camera, mouseX, mouseY)){
+        // check the children of this node if they were selected               
+        } else if(selectNode(sector.moons, scene, camera, mouseX, mouseY)){
            // found an intersecting child node
            return false;
            
-       }  else {
+        }  else {
            return true; // check next sector
-       }
+        }
         
     });
     
-    if (selectedURI != false){
-        $('#node-label').text(selectedURI);
+    // set the node label on screen
+    if (output != false){
+        $('#node-label').html(output);
     }
     
-    return selectedURI;
+    return output;
 }
 
 /*
@@ -454,30 +470,6 @@ function prepareUI(){
         resetView();
     });
     
-    // have the navigation menu slide away/in
-    $('#nav-shoulder').click(function(){
-        $('#nav').animate({
-            width: "30%"
-        }, 100);
-    });    
-    $('#nav').mouseleave(function(){
-        $('#nav').animate({
-            width: "0px"
-        }, 100);        
-    });
-    
-    // have the control panel slide away/in
-    $('#control-panel-shoulder').click(function(){
-        $('#control-panel').animate({
-            height: "30%"
-        }, 100);
-    });    
-    $('#control-panel').mouseleave(function(){
-        $('#control-panel').animate({
-            height: "0px"
-        }, 100);        
-    });
-    
     // when the user double clicks on the canvas, project a ray to determine what node they are clicking on
     var ch = $('#canvas-holder');
     ch.dblclick(function(e){
@@ -489,7 +481,7 @@ function prepareUI(){
     
     // show an "About" dialog
     $('#openAbout').button().click(function(){
-            $('#about-dialog').dialog("open");
+        $('#about-dialog').dialog("open");
     });
     $('#about-dialog').dialog({
         autoOpen : false,
@@ -500,14 +492,36 @@ function prepareUI(){
     
     // show a "Help" dialog
     $('#openHelp').button().click(function(){
-            $('#help-dialog').dialog("open");
+        $('#help-dialog').dialog("open");
     });
     $('#help-dialog').dialog({
         autoOpen : false,
         modal : true,
         resizable: false,
         title: "Help"
-    });    
+    });
+    
+    // show control panel dialog
+    $('#openControlPanel').button().click(function(){
+        $('#control-panel-dialog').dialog("open");
+    });
+    $('#control-panel-dialog').dialog({
+        autoOpen : false,
+        modal : true,
+        resizable: false,
+        title: "Control Panel"
+    });
+    
+    // show node navigation panel dialog
+    $('#openNodeNav').button().click(function(){
+        $('#nodenav-dialog').dialog("open");
+    });
+    $('#nodenav-dialog').dialog({
+        autoOpen : false,
+        modal : false,
+        resizable: false,
+        title: "Node Navigation"
+    });
     
 }
 
